@@ -21,7 +21,9 @@ public class User {
     private String username;
     private String email;
     private String phone;
-    private String cpf;
+    
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -54,12 +56,8 @@ public class User {
         this.phone = phone;
     }
 
-    public String getCpf() {
-        return cpf;
-    }
-
-    public void setCpf(String cpf) {
-        this.cpf = cpf;
+    public void setPasswordHash(String passwordHash) {
+       this.passwordHash = passwordHash;
     }
 
     public LocalDateTime getCreatedAt() {
