@@ -7,8 +7,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.confereantes.service.UserService;
+import com.confereantes.dto.UserRequest;
+
+import jakarta.validation.Valid;
+
 import com.confereantes.model.User;
 
 @RestController
@@ -27,8 +33,9 @@ public class UserController {
     }
 
     @PostMapping
-    public User save(@RequestBody User user) {
-        return userService.save(user);
+    @ResponseStatus(HttpStatus.CREATED)
+    public User save(@Valid @RequestBody UserRequest request) {
+        return userService.save(request);
     }
 
 }
