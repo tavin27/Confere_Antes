@@ -18,10 +18,13 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String username;
+
+    @Column(nullable = false, unique = true)
     private String email;
     private String phone;
-    
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -57,7 +60,7 @@ public class User {
     }
 
     public void setPasswordHash(String passwordHash) {
-       this.passwordHash = passwordHash;
+        this.passwordHash = passwordHash;
     }
 
     public LocalDateTime getCreatedAt() {
