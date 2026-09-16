@@ -2,6 +2,7 @@ package com.confereantes.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class UserRequest {
     @NotBlank(message = "Nome de usuário é obrigatório")
@@ -14,6 +15,7 @@ public class UserRequest {
     private String phone;
 
     @NotBlank(message = "Senha é obrigatória")
+    @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72")
     private String password;
 
     public String getUsername() {
