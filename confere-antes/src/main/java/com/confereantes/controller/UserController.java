@@ -12,10 +12,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.confereantes.service.UserService;
 import com.confereantes.dto.UserRequest;
+import com.confereantes.dto.UserResponse;
 
 import jakarta.validation.Valid;
-
-import com.confereantes.model.User;
 
 @RestController
 @RequestMapping("/users")
@@ -28,13 +27,13 @@ public class UserController {
     }
 
     @GetMapping
-    public List<User> findAll() {
+    public List<UserResponse> findAll() {
         return userService.findAll();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public User save(@Valid @RequestBody UserRequest request) {
+    public UserResponse save(@Valid @RequestBody UserRequest request) {
         return userService.save(request);
     }
 
