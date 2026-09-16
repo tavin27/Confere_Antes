@@ -1,15 +1,14 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE users (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username       VARCHAR(50)  NOT NULL UNIQUE,
-    email          VARCHAR(100) NOT NULL UNIQUE,
-    password_hash  VARCHAR(255) NOT NULL,          
-    telefone       VARCHAR(20),
-    cpf            VARCHAR(14)  NOT NULL UNIQUE,
-    created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    active         BOOLEAN      NOT NULL DEFAULT true
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE transactions (
