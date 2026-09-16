@@ -12,19 +12,27 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationErrors(
-            MethodArgumentNotValidException exception) {
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<Map<String, String>> handleValidationErrors(
+                        MethodArgumentNotValidException exception) {
 
-        Map<String, String> errors = new LinkedHashMap<>();
+                Map<String, String> errors = new LinkedHashMap<>();
 
-        exception.getBindingResult()
-                .getFieldErrors()
-                .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
+                exception.getBindingResult()
+                                .getFieldErrors()
+                                .forEach(error -> errors.put(error.getField(), error.getDefaultMessage()));
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(errors);
-    }
+                return ResponseEntity
+                                .status(HttpStatus.BAD_REQUEST)
+                                .body(errors);
+        }
+
+        @ExceptionHandler(DuplicateUserException.class)
+        public ResponseEntity<String> handleDuplicateUser(DuplicateUserException exception) {
+
+                return ResponseEntity
+                                .status(HttpStatus.CONFLICT)
+                                .body(exception.getMessage());
+        }
 
 }
