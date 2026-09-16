@@ -2,12 +2,15 @@ package com.confereantes.service;
 
 import java.util.List;
 
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.confereantes.model.User;
 import com.confereantes.repository.UserRepository;
 import com.confereantes.dto.UserRequest;
+import com.confereantes.dto.UserResponse;
 import com.confereantes.exception.DuplicateUserException;
 
 @Service
@@ -20,11 +23,15 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    public List<User> findAll() {
-        return userRepository.findAll();
+    public List<UserResponse> findAll() {
+        return userRepository.findAll()
+                .stream()
+                .map(UserResponse::new)
+                .collect(Collectors.toList());
+
     }
 
-    public User save(UserRequest request) {
+    public UserResponse save(UserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new DuplicateUserException("Nome de usuário já cadastrado");
         }
@@ -39,7 +46,9 @@ public class UserService {
         user.setPhone(request.getPhone());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        return new UserResponse(savedUser);
     }
 
 }
