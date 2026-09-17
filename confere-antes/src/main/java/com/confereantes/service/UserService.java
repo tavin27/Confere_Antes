@@ -9,9 +9,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.confereantes.model.User;
 import com.confereantes.repository.UserRepository;
+import com.confereantes.dto.LoginRequest;
 import com.confereantes.dto.UserRequest;
 import com.confereantes.dto.UserResponse;
 import com.confereantes.exception.DuplicateUserException;
+import com.confereantes.exception.InvalidCredentialsException;
 
 @Service
 public class UserService {
@@ -49,6 +51,21 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         return new UserResponse(savedUser);
+
+    }
+
+    public UserResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException("Credenciais inválidas"));
+
+        boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
+
+        if (!passwordMatches) {
+            throw new InvalidCredentialsException("Crendenciais inválidas");
+        }
+
+        return new UserResponse(user);
+
     }
 
 }
