@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.confereantes.model.User;
 import com.confereantes.repository.UserRepository;
 import com.confereantes.dto.LoginRequest;
+import com.confereantes.dto.LoginResponse;
 import com.confereantes.dto.UserRequest;
 import com.confereantes.dto.UserResponse;
 import com.confereantes.exception.DuplicateUserException;
@@ -19,10 +20,12 @@ import com.confereantes.exception.InvalidCredentialsException;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public List<UserResponse> findAll() {
@@ -54,7 +57,7 @@ public class UserService {
 
     }
 
-    public UserResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("Credenciais inválidas"));
 
@@ -64,7 +67,9 @@ public class UserService {
             throw new InvalidCredentialsException("Crendenciais inválidas");
         }
 
-        return new UserResponse(user);
+        String token = jwtService.generateToken(user.getEmail());
+
+        return new LoginResponse(token, "Bearer");
 
     }
 
