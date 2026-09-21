@@ -1,9 +1,11 @@
 package com.confereantes.exception;
 
 import java.util.Map;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 
 import org.springframework.http.HttpStatus;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,6 +35,19 @@ public class GlobalExceptionHandler {
                 return ResponseEntity
                                 .status(HttpStatus.CONFLICT)
                                 .body(exception.getMessage());
+        }
+
+        @ExceptionHandler(InvalidCredentialsException.class)
+        public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException exception) {
+                Map<String, Object> body = new LinkedHashMap<>();
+
+                body.put("status", HttpStatus.UNAUTHORIZED.value());
+                body.put("message", "Credenciais inválidas");
+                body.put("timestamp", Instant.now());
+
+                return ResponseEntity
+                                .status(HttpStatus.UNAUTHORIZED)
+                                .body(body);
         }
 
 }
