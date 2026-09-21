@@ -28,7 +28,7 @@ public class JwtService {
                 .issuer("confere-antes")
                 .subject(email)
                 .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600))
+                .expiresAt(now.plusSeconds(expirationSeconds))
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256)
