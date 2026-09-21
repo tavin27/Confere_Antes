@@ -64,7 +64,7 @@ public class UserService {
         boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
 
         if (!passwordMatches) {
-            throw new InvalidCredentialsException("Crendenciais inválidas");
+            throw new InvalidCredentialsException("Credenciais inválidas");
         }
 
         String token = jwtService.generateToken(user.getEmail());
