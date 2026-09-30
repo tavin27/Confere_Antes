@@ -25,10 +25,20 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.confereantes.config.JwtConfig;
 import com.confereantes.config.SecurityConfig;
 import com.confereantes.service.UserService;
+import com.confereantes.config.JwtAuthenticationEntryPoint;
 
-@WebMvcTest(UserController.class)
-@Import({ SecurityConfig.class, JwtConfig.class })
-@TestPropertySource(properties = { "jwt.secret=test-only-jwt-secret-not-for-production-2026" })
+@WebMvcTest({
+    UserController.class,
+    AuthController.class
+})
+@Import({
+    SecurityConfig.class,
+    JwtConfig.class,
+    JwtAuthenticationEntryPoint.class
+})
+@TestPropertySource(properties = {
+    "jwt.secret=test-only-jwt-secret-not-for-production-2026"
+})
 public class JwtSecurityTests {
 
     @Autowired

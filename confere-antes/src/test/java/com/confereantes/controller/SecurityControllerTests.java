@@ -27,11 +27,18 @@ import com.confereantes.dto.UserResponse;
 import com.confereantes.exception.InvalidCredentialsException;
 import com.confereantes.service.UserService;
 
+import com.confereantes.config.JwtAuthenticationEntryPoint;
+import com.confereantes.config.JwtConfig;
+
 @WebMvcTest({
-                UserController.class,
-                AuthController.class
+    UserController.class,
+    AuthController.class
 })
-@Import(SecurityConfig.class)
+@Import({
+    SecurityConfig.class,
+    JwtConfig.class,
+    JwtAuthenticationEntryPoint.class
+})
 public class SecurityControllerTests {
 
         @Autowired
