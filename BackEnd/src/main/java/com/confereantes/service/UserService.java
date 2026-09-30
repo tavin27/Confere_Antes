@@ -61,6 +61,10 @@ public class UserService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("Credenciais inválidas"));
 
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Credenciais inválidas");
+        }
+
         boolean passwordMatches = passwordEncoder.matches(request.getPassword(), user.getPasswordHash());
 
         if (!passwordMatches) {

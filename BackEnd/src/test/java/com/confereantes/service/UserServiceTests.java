@@ -171,4 +171,24 @@ public class UserServiceTests {
                                 .generateToken(any());
         }
 
+        @Test
+        void shouldRejectInactiveUser() {
+                LoginRequest request = new LoginRequest();
+                request.setEmail("inactive@example.com");
+                request.setPassword("plain-password");
+
+                User user = new User();
+                user.setEmail("inactive@example.com");
+                user.setActive(false);
+                user.setPasswordHash("encoded-password");
+
+                when(userRepository.findByEmail("inactive@example.com"))
+                                .thenReturn(Optional.of(user));
+
+                assertThrows(InvalidCredentialsException.class,
+                                () -> userService.login(request));
+
+                verify(jwtService, never()).generateToken(any());
+        }
+
 }
