@@ -7,8 +7,8 @@ use versioned Flyway migrations for existing databases.
 
 Usage:
     Set DATABASE_URL to a PostgreSQL connection string.
-    python CreateDB.py --dry-run
-    python CreateDB.py
+    python apply_schema.py --dry-run
+    python apply_schema.py
 
 The setup role needs permission to create extensions and roles.
 Dependency: pip install psycopg2-binary
@@ -19,8 +19,8 @@ import os
 import sys
 from pathlib import Path
 
-SCHEMA = Path(__file__).with_name("DataBase.sql")
-INDEXES = Path(__file__).with_name("INDEX.sql")
+SCHEMA = Path(__file__).with_name("schema.sql")
+INDEXES = Path(__file__).with_name("search_indexes.sql")
 
 
 def main():

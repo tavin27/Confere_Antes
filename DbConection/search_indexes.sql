@@ -1,6 +1,6 @@
 -- =====================================================================
 -- ÍNDICES DE BUSCA (PostgreSQL)
--- Rodado depois de DataBase.sql; CreateDB.py aplica os dois arquivos.
+-- Rodado depois de schema.sql; apply_schema.py aplica os dois arquivos.
 -- Para Flyway, converta em uma migration versionada, por exemplo V2__search_indexes.sql.
 -- Não repete nenhum índice que já existe no schema.
 -- =====================================================================

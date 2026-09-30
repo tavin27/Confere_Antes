@@ -2,9 +2,9 @@
 
 ## Overview
 
-The schema defined in `DataBase.sql` is designed for PostgreSQL. It uses PostgreSQL-specific features, including `pgcrypto`, UUID generation, `TIMESTAMPTZ`, `TEXT[]`, `JSONB`, partial indexes, and PL/pgSQL triggers. The folder also contains `INDEX.sql`, `CreateDB.py`, and `CreateCodeVerifyEntry.py`.
+The schema defined in `schema.sql` is designed for PostgreSQL. It uses PostgreSQL-specific features, including `pgcrypto`, UUID generation, `TIMESTAMPTZ`, `TEXT[]`, `JSONB`, partial indexes, and PL/pgSQL triggers. The folder also contains `search_indexes.sql`, `apply_schema.py`, and `verification_code.py`.
 
-For a fresh, already-created PostgreSQL database, set `DATABASE_URL` and run `python CreateDB.py`. The script applies `DataBase.sql` and `INDEX.sql` in one transaction; `python CreateDB.py --dry-run` prints both files without connecting. The setup account needs permission to create extensions and roles. Install the Python dependency with `pip install psycopg2-binary`.
+For a fresh, already-created PostgreSQL database, set `DATABASE_URL` and run `python apply_schema.py`. The script applies `schema.sql` and `search_indexes.sql` in one transaction; `python apply_schema.py --dry-run` prints both files without connecting. The setup account needs permission to create extensions and roles. Install the Python dependency with `pip install psycopg2-binary`.
 
 This is an initial bootstrap, not a repeatable migration. Use versioned Flyway migrations for existing databases. The Java application is configured for PostgreSQL, but database credentials and the database itself must still be provided.
 
@@ -114,7 +114,7 @@ Indexes support lookup by user, category, risk level, and JSON flags.
 - Deleting a transaction referenced by an alert is blocked by the default foreign-key action on `alerts.transaction_id`.
 - Deleting a scam pattern referenced by an alert is blocked by the default foreign-key action on `alerts.pattern_id`.
 - These rules mean the current policy is mixed: transaction history cascades when possible, while alert history is retained and blocks deletion of its user. Confirm the intended retention/privacy policy before relying on physical deletion.
-- Verification codes must not be stored in plaintext. `CreateCodeVerifyEntry.py` generates the code and HMAC-SHA256 digest using `VERIFICATION_PEPPER`, which stays outside the database. `verify_transaction_code` checks that the transaction belongs to the supplied user before counting attempts. The caller must pass the authenticated user's ID, never an ID supplied by the client.
+- Verification codes must not be stored in plaintext. `verification_code.py` generates the code and HMAC-SHA256 digest using `VERIFICATION_PEPPER`, which stays outside the database. `verify_transaction_code` checks that the transaction belongs to the supplied user before counting attempts. The caller must pass the authenticated user's ID, never an ID supplied by the client.
 - The application role has no direct `DELETE` permission. The privacy-officer function anonymizes a user and requires a BCrypt hash generated from a random discarded secret. The application rejects inactive users at login.
 
 ## Automatic Updates
