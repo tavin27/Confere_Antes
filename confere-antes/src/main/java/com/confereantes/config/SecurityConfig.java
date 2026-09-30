@@ -13,6 +13,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 @EnableWebSecurity
 public class SecurityConfig {
 
+        private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+
+        public SecurityConfig(
+                        JwtAuthenticationEntryPoint authenticationEntryPoint) {
+                this.authenticationEntryPoint = authenticationEntryPoint;
+
+        }
+
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http)
                         throws Exception {
@@ -21,6 +29,8 @@ public class SecurityConfig {
                                 .csrf(csrf -> csrf.disable())
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(authenticationEntryPoint))
                                 .authorizeHttpRequests(auth -> auth
                                                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
