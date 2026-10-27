@@ -44,9 +44,15 @@
 		</dependency>
 
 		<dependency>
+<<<<<<< HEAD:confere-antes/pom.xml
+    		<groupId>org.postgresql</groupId>
+    		<artifactId>postgresql</artifactId>
+    		<scope>runtime</scope>
+=======
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
+>>>>>>> main:Configs/pom.xml
 		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
