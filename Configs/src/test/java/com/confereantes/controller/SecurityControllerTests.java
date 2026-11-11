@@ -18,6 +18,12 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.eq;
+
+import java.time.LocalDateTime;
+
+import com.confereantes.model.User;
 
 import com.confereantes.config.SecurityConfig;
 import com.confereantes.dto.LoginRequest;
@@ -31,13 +37,13 @@ import com.confereantes.config.JwtAuthenticationEntryPoint;
 import com.confereantes.config.JwtConfig;
 
 @WebMvcTest({
-    UserController.class,
-    AuthController.class
+                UserController.class,
+                AuthController.class
 })
 @Import({
-    SecurityConfig.class,
-    JwtConfig.class,
-    JwtAuthenticationEntryPoint.class
+                SecurityConfig.class,
+                JwtConfig.class,
+                JwtAuthenticationEntryPoint.class
 })
 public class SecurityControllerTests {
 
@@ -150,5 +156,37 @@ public class SecurityControllerTests {
                                 .andExpect(jsonPath("$.message")
                                                 .value("Credenciais inválidas"));
 
+        }
+
+        @Test
+        void shouldReturnCurrentUserWithValidToken() throws Exception {
+
+                User user = new User();
+                user.setUsername("Giovanna");
+                user.setEmail("giovanna@example.com");
+                user.setPhone("11999999999");
+                user.setCreatedAt(LocalDateTime.now());
+
+                UserResponse userResponse = new UserResponse(user);
+
+                when(userService.findByEmail("giovanna@example.com"))
+                                .thenReturn(userResponse);
+
+                mockMvc.perform(
+                                get("/users/me")
+                                                .with(SecurityMockMvcRequestPostProcessors.jwt()
+                                                                .jwt(jwt -> jwt.subject("giovanna@example.com"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.username").value("Giovanna"))
+                                .andExpect(jsonPath("$.email").value("giovanna@example.com"));
+
+                verify(userService).findByEmail(eq("giovanna@example.com"));
+        }
+
+        @Test
+        void shouldRejectCurrentUserWithoutToken() throws Exception {
+
+                mockMvc.perform(get("/users/me"))
+                                .andExpect(status().isUnauthorized());
         }
 }

@@ -28,160 +28,168 @@ import com.confereantes.service.UserService;
 import com.confereantes.config.JwtAuthenticationEntryPoint;
 
 @WebMvcTest({
-    UserController.class,
-    AuthController.class
+                UserController.class,
+                AuthController.class
 })
 @Import({
-    SecurityConfig.class,
-    JwtConfig.class,
-    JwtAuthenticationEntryPoint.class
+                SecurityConfig.class,
+                JwtConfig.class,
+                JwtAuthenticationEntryPoint.class
 })
 @TestPropertySource(properties = {
-    "jwt.secret=test-only-jwt-secret-not-for-production-2026"
+                "jwt.secret=test-only-jwt-secret-not-for-production-2026"
 })
 public class JwtSecurityTests {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @Autowired
-    private JwtEncoder jwtEncoder;
+        @Autowired
+        private JwtEncoder jwtEncoder;
 
-    @MockitoBean
-    private UserService userService;
+        @MockitoBean
+        private UserService userService;
 
-    @Test
-    void shouldRejectInvalidJwt() throws Exception {
-        mockMvc.perform(
-                get("/users")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer invalid-token"))
-                .andExpect(status().isUnauthorized());
+        @Test
+        void shouldRejectInvalidJwt() throws Exception {
+                mockMvc.perform(
+                                get("/users")
+                                                .header(
+                                                                HttpHeaders.AUTHORIZATION,
+                                                                "Bearer invalid-token"))
+                                .andExpect(status().isUnauthorized());
 
-    }
+        }
 
-    @Test
-    void shouldRejectExpiredJwt() throws Exception {
-        Instant now = Instant.now();
+        @Test
+        void shouldRejectExpiredJwt() throws Exception {
+                Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("confere-antes")
-                .subject("giovanna@example.com")
-                .issuedAt(now.minusSeconds(120))
-                .expiresAt(now.minusSeconds(60))
-                .build();
+                JwtClaimsSet claims = JwtClaimsSet.builder()
+                                .issuer("confere-antes")
+                                .subject("giovanna@example.com")
+                                .issuedAt(now.minusSeconds(120))
+                                .expiresAt(now.minusSeconds(60))
+                                .build();
 
-        String expiredToken = jwtEncoder
-                .encode(
-                        JwtEncoderParameters.from(
-                                JwsHeader.with(MacAlgorithm.HS256).build(),
-                                claims))
-                .getTokenValue();
+                String expiredToken = jwtEncoder
+                                .encode(
+                                                JwtEncoderParameters.from(
+                                                                JwsHeader.with(MacAlgorithm.HS256).build(),
+                                                                claims))
+                                .getTokenValue();
 
-        mockMvc.perform(
-                get("/users")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer " + expiredToken))
-                .andExpect(status().isUnauthorized());
+                mockMvc.perform(
+                                get("/users")
+                                                .header(
+                                                                HttpHeaders.AUTHORIZATION,
+                                                                "Bearer " + expiredToken))
+                                .andExpect(status().isUnauthorized());
 
-    }
+        }
 
-    @Test
-    void shouldRejectJwtWithInvalidIssuer() throws Exception {
-        Instant now = Instant.now();
+        @Test
+        void shouldRejectJwtWithInvalidIssuer() throws Exception {
+                Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("outro-servico")
-                .subject("giovanna@example.com")
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600))
-                .build();
+                JwtClaimsSet claims = JwtClaimsSet.builder()
+                                .issuer("outro-servico")
+                                .subject("giovanna@example.com")
+                                .issuedAt(now)
+                                .expiresAt(now.plusSeconds(3600))
+                                .build();
 
-        String tokenWithInvalidIssuer = jwtEncoder.encode(
-                JwtEncoderParameters.from(
-                        JwsHeader.with(MacAlgorithm.HS256).build(),
-                        claims))
-                .getTokenValue();
+                String tokenWithInvalidIssuer = jwtEncoder.encode(
+                                JwtEncoderParameters.from(
+                                                JwsHeader.with(MacAlgorithm.HS256).build(),
+                                                claims))
+                                .getTokenValue();
 
-        mockMvc.perform(
-                get("/users")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer " + tokenWithInvalidIssuer)
+                mockMvc.perform(
+                                get("/users")
+                                                .header(
+                                                                HttpHeaders.AUTHORIZATION,
+                                                                "Bearer " + tokenWithInvalidIssuer)
 
-        ).andExpect(status().isUnauthorized());
-    }
+                ).andExpect(status().isUnauthorized());
+        }
 
-    @Test
-    void shouldRejectTamperedJwt() throws Exception {
-        Instant now = Instant.now();
+        @Test
+        void shouldRejectTamperedJwt() throws Exception {
+                Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("confere-antes")
-                .subject("giovanna@example.com")
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600))
-                .build();
+                JwtClaimsSet claims = JwtClaimsSet.builder()
+                                .issuer("confere-antes")
+                                .subject("giovanna@example.com")
+                                .issuedAt(now)
+                                .expiresAt(now.plusSeconds(3600))
+                                .build();
 
-        String validToken = jwtEncoder.encode(
-                JwtEncoderParameters.from(
-                        JwsHeader.with(MacAlgorithm.HS256).build(),
-                        claims))
-                .getTokenValue();
+                String validToken = jwtEncoder.encode(
+                                JwtEncoderParameters.from(
+                                                JwsHeader.with(MacAlgorithm.HS256).build(),
+                                                claims))
+                                .getTokenValue();
 
-        String[] tokenParts = validToken.split("\\.");
+                String[] tokenParts = validToken.split("\\.");
 
-        assertEquals(3, tokenParts.length);
+                assertEquals(3, tokenParts.length);
 
-        String header = tokenParts[0];
-        String payload = tokenParts[1];
-        String signature = tokenParts[2];
+                String header = tokenParts[0];
+                String payload = tokenParts[1];
+                String signature = tokenParts[2];
 
-        char originalCharacter = signature.charAt(0);
-        char replacementCharacter = originalCharacter == 'a' ? 'b' : 'a';
+                char originalCharacter = signature.charAt(0);
+                char replacementCharacter = originalCharacter == 'a' ? 'b' : 'a';
 
-        String tamperedSignature = replacementCharacter + signature.substring(1);
+                String tamperedSignature = replacementCharacter + signature.substring(1);
 
-        String tamperedToken = header + "." + payload + "." + tamperedSignature;
+                String tamperedToken = header + "." + payload + "." + tamperedSignature;
 
-        mockMvc.perform(
-                get("/users")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer " + tamperedToken))
-                .andExpect(status().isUnauthorized());
-    }
+                mockMvc.perform(
+                                get("/users")
+                                                .header(
+                                                                HttpHeaders.AUTHORIZATION,
+                                                                "Bearer " + tamperedToken))
+                                .andExpect(status().isUnauthorized());
+        }
 
-    @Test
-    void shouldAllowProtectedEndpointWithRealValidJwt() throws Exception {
-        when(userService.findAll())
-                .thenReturn(List.of());
+        @Test
+        void shouldAllowProtectedEndpointWithRealValidJwt() throws Exception {
+                when(userService.findAll())
+                                .thenReturn(List.of());
 
-        Instant now = Instant.now();
+                Instant now = Instant.now();
 
-        JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("confere-antes")
-                .subject("giovanna@example.com")
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(3600))
-                .build();
+                JwtClaimsSet claims = JwtClaimsSet.builder()
+                                .issuer("confere-antes")
+                                .subject("giovanna@example.com")
+                                .issuedAt(now)
+                                .expiresAt(now.plusSeconds(3600))
+                                .build();
 
-        JwsHeader header = JwsHeader
-                .with(MacAlgorithm.HS256)
-                .build();
+                JwsHeader header = JwsHeader
+                                .with(MacAlgorithm.HS256)
+                                .build();
 
-        String token = jwtEncoder
-                .encode(
-                        JwtEncoderParameters.from(header, claims))
-                .getTokenValue();
+                String token = jwtEncoder
+                                .encode(
+                                                JwtEncoderParameters.from(header, claims))
+                                .getTokenValue();
 
-        mockMvc.perform(
-                get("/users")
-                        .header(
-                                HttpHeaders.AUTHORIZATION,
-                                "Bearer " + token))
-                .andExpect(status().isOk());
-    }
+                mockMvc.perform(
+                                get("/users")
+                                                .header(
+                                                                HttpHeaders.AUTHORIZATION,
+                                                                "Bearer " + token))
+                                .andExpect(status().isOk());
+        }
+
+        @Test
+        void shouldRejectInvalidJwtForCurrentUser() throws Exception {
+                mockMvc.perform(
+                                get("/users/me")
+                                                .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token"))
+                                .andExpect(status().isUnauthorized());
+        }
 }
