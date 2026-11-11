@@ -77,4 +77,11 @@ public class UserService {
 
     }
 
+    public UserResponse findByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+
+        return new UserResponse(user);
+    }
+
 }

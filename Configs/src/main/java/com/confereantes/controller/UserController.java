@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.security.core.Authentication;
 
 import com.confereantes.service.UserService;
 import com.confereantes.dto.UserRequest;
@@ -35,6 +36,11 @@ public class UserController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse save(@Valid @RequestBody UserRequest request) {
         return userService.save(request);
+    }
+
+    @GetMapping("/me")
+    public UserResponse getCurrentUser(Authentication authentication) {
+        return userService.findByEmail(authentication.getName());
     }
 
 }
