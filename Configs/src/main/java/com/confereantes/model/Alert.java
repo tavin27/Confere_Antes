@@ -52,7 +52,7 @@ public class Alert {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    protected Alert() {
+    public Alert() {
 
     }
 
