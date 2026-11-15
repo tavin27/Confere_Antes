@@ -9,9 +9,6 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import com.confereantes.model.Alert;
 import com.confereantes.model.User;
 import com.confereantes.model.enums.ContactChannel;
-import com.confereantes.repository.AlertRepository;
-import com.confereantes.repository.UserRepository;
-import com.confereantes.model.enums.AlertStatus;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -38,18 +35,17 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria um alerta associado ao usuário
+        // Arrange: cria uma sessão de análise associada ao usuário
         Alert alert = new Alert();
         alert.setUser(savedUser);
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Recebi uma mensagem suspeita de um suposto funcionário do banco.");
 
-        // Act: salva o alerta
+        // Act: salva a sessão
         Alert savedAlert = alertRepository.save(alert);
 
         // Assert: verifica os resultados
         assertNotNull(savedAlert.getId());
-        assertEquals(AlertStatus.PENDENTE_ANALISE, savedAlert.getStatus());
+        assertNull(savedAlert.getOverallRiskScore());
         assertNotNull(savedAlert.getCreatedAt());
         assertEquals(savedUser.getId(), savedAlert.getUser().getId());
     }
@@ -64,18 +60,17 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria e salva um alerta
+        // Arrange: cria e salva uma sessão
         Alert alert = new Alert();
         alert.setUser(savedUser);
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Mensagem suspeita para testar a busca.");
 
         Alert savedAlert = alertRepository.save(alert);
 
-        // Act: busca o alerta pelo ID
+        // Act: busca a sessão pelo ID
         var foundAlert = alertRepository.findById(savedAlert.getId());
 
-        // Assert: verifica se encontrou o alerta
+        // Assert: verifica se encontrou a sessão
         assertTrue(foundAlert.isPresent());
         assertEquals(savedAlert.getId(), foundAlert.get().getId());
     }
@@ -90,16 +85,14 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria dois alertas
+        // Arrange: cria duas sessões
         Alert alert1 = new Alert();
         alert1.setUser(savedUser);
         alert1.setContactChannel(ContactChannel.WHATSAPP);
-        alert1.setContent("Primeiro alerta.");
 
         Alert alert2 = new Alert();
         alert2.setUser(savedUser);
         alert2.setContactChannel(ContactChannel.LIGACAO);
-        alert2.setContent("Segundo alerta.");
 
         alertRepository.save(alert1);
         alertRepository.save(alert2);
@@ -121,18 +114,17 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria e salva um alerta
+        // Arrange: cria e salva uma sessão
         Alert alert = new Alert();
         alert.setUser(savedUser);
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Alerta para testar exclusão.");
 
         Alert savedAlert = alertRepository.save(alert);
 
-        // Act: exclui o alerta
+        // Act: exclui a sessão
         alertRepository.deleteById(savedAlert.getId());
 
-        // Assert: verifica se foi excluído
+        // Assert: verifica se foi excluída
         assertFalse(alertRepository.findById(savedAlert.getId()).isPresent());
     }
 
@@ -146,15 +138,14 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria e salva um alerta
+        // Arrange: cria e salva uma sessão
         Alert alert = new Alert();
         alert.setUser(savedUser);
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Mensagem para testar o relacionamento.");
 
         Alert savedAlert = alertRepository.save(alert);
 
-        // Act: busca o alerta novamente
+        // Act: busca a sessão novamente
         entityManager.flush();
         entityManager.clear();
 
@@ -167,10 +158,9 @@ class AlertRepositoryTest {
 
     @Test
     void shouldNotSaveAlertWithoutUser() {
-        // Arrange: cria um alerta sem usuário
+        // Arrange: cria uma sessão sem usuário
         Alert alert = new Alert();
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Alerta sem usuário associado.");
 
         // Act e Assert: verifica se a persistência falha
         assertThrows(Exception.class, () -> {
@@ -179,7 +169,7 @@ class AlertRepositoryTest {
     }
 
     @Test
-    void shouldUpdateAlertContent() {
+    void shouldUpdateAlertOverallRiskScore() {
         // Arrange: cria e salva um usuário
         User user = new User();
         user.setUsername("usuario_atualizacao");
@@ -188,22 +178,24 @@ class AlertRepositoryTest {
 
         User savedUser = userRepository.save(user);
 
-        // Arrange: cria e salva um alerta
+        // Arrange: cria e salva uma sessão
         Alert alert = new Alert();
         alert.setUser(savedUser);
         alert.setContactChannel(ContactChannel.WHATSAPP);
-        alert.setContent("Mensagem original.");
 
         Alert savedAlert = alertRepository.save(alert);
 
-        // Act: atualiza o conteúdo
-        savedAlert.setContent("Mensagem atualizada.");
+        // Act: atualiza a pontuação geral
+        savedAlert.setOverallRiskScore(75);
         alertRepository.save(savedAlert);
+
+        entityManager.flush();
+        entityManager.clear();
 
         // Assert: verifica a atualização
         var updatedAlert = alertRepository.findById(savedAlert.getId());
 
         assertTrue(updatedAlert.isPresent());
-        assertEquals("Mensagem atualizada.", updatedAlert.get().getContent());
+        assertEquals(75, updatedAlert.get().getOverallRiskScore());
     }
 }
