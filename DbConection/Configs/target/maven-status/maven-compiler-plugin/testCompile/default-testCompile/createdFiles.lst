@@ -1,0 +1,5 @@
+com\confereantes\service\UserServiceTests.class
+com\confereantes\controller\SecurityControllerTests.class
+com\confereantes\ConfereAntesApplicationTests.class
+com\confereantes\controller\JwtSecurityTests.class
+com\confereantes\service\JwtServiceTests.class
