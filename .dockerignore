@@ -1,0 +1,7 @@
+.git
+.gitignore
+.venv
+**/target
+**/__pycache__
+DbConection/Configs
+*.pyc
