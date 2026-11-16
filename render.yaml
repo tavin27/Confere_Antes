@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: confere-antes-api
+    name: confere-antes-web
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
