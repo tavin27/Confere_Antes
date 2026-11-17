@@ -38,7 +38,7 @@ class AlertServiceTest {
     @Test
     void shouldCreateAlertSuccessfully() {
 
-        Long userId = 1L;
+        String userEmail = "usuario@teste.com";
 
         User user = new User();
 
@@ -46,7 +46,7 @@ class AlertServiceTest {
         request.setContactChannel(ContactChannel.WHATSAPP);
         request.setContactValue("11999999999");
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByEmail(userEmail))
                 .thenReturn(Optional.of(user));
 
         when(alertRepository.save(any(Alert.class)))
@@ -58,53 +58,53 @@ class AlertServiceTest {
                     return alert;
                 });
 
-        AlertResponse response = alertService.createAlert(request, userId);
+        AlertResponse response = alertService.createAlert(request, userEmail);
 
         assertNotNull(response);
         assertEquals(ContactChannel.WHATSAPP, response.getContactChannel());
         assertEquals("11999999999", response.getContactValue());
         assertNull(response.getOverallRiskScore());
 
-        verify(userRepository).findById(userId);
+        verify(userRepository).findByEmail(userEmail);
         verify(alertRepository).save(any(Alert.class));
     }
 
     @Test
     void shouldThrowExceptionWhenUserDoesNotExist() {
 
-        Long userId = 99L;
+        String userEmail = "inexistente@teste.com";
 
         AlertRequest request = new AlertRequest();
         request.setContactChannel(ContactChannel.WHATSAPP);
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByEmail(userEmail))
                 .thenReturn(Optional.empty());
 
         assertThrows(EntityNotFoundException.class, () -> {
-            alertService.createAlert(request, userId);
+            alertService.createAlert(request, userEmail);
         });
 
-        verify(userRepository).findById(userId);
+        verify(userRepository).findByEmail(userEmail);
         verify(alertRepository, never()).save(any(Alert.class));
     }
 
     @Test
     void shouldCreateAlertWithoutContactValue() {
 
-        Long userId = 1L;
+        String userEmail = "usuario@teste.com";
 
         User user = new User();
 
         AlertRequest request = new AlertRequest();
         request.setContactChannel(ContactChannel.WHATSAPP);
 
-        when(userRepository.findById(userId))
+        when(userRepository.findByEmail(userEmail))
                 .thenReturn(Optional.of(user));
 
         when(alertRepository.save(any(Alert.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        AlertResponse response = alertService.createAlert(request, userId);
+        AlertResponse response = alertService.createAlert(request, userEmail);
 
         assertNotNull(response);
         assertEquals(ContactChannel.WHATSAPP, response.getContactChannel());

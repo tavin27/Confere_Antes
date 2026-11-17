@@ -27,9 +27,9 @@ public class AlertService {
     }
 
     @Transactional
-    public AlertResponse createAlert(AlertRequest request, Long userId) {
+    public AlertResponse createAlert(AlertRequest request, String userEmail) {
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Usuário não encontrado"));
 

@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 
 import com.confereantes.dto.AlertResponse;
 import com.confereantes.model.enums.ContactChannel;
@@ -60,11 +61,12 @@ class AlertControllerTest {
                 null,
                 LocalDateTime.of(2026, 11, 15, 15, 0));
 
-        when(alertService.createAlert(any(), eq(1L)))
+        when(alertService.createAlert(any(), eq("usuario@teste.com")))
                 .thenReturn(response);
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
+                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
                 .content("""
                         {
                             "contactChannel": "WHATSAPP",
@@ -77,7 +79,7 @@ class AlertControllerTest {
                 .andExpect(jsonPath("$.contactValue").value("11999999999"))
                 .andExpect(jsonPath("$.overallRiskScore").value((Object) null));
 
-        verify(alertService).createAlert(any(), eq(1L));
+        verify(alertService).createAlert(any(), eq("usuario@teste.com"));
     }
 
     @Test
@@ -85,6 +87,7 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
+                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
                 .content("""
                         {
                             "contactValue": "11999999999"

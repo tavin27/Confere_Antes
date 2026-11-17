@@ -1,8 +1,8 @@
-
 package com.confereantes.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,11 +26,13 @@ public class AlertController {
 
     @PostMapping
     public ResponseEntity<AlertResponse> createAlert(
-            @Valid @RequestBody AlertRequest request) {
+            @Valid @RequestBody AlertRequest request,
+            Authentication authentication) {
 
-        Long userId = 1L;
+        String email = authentication.getName();
 
-        AlertResponse response = alertService.createAlert(request, userId);
+        AlertResponse response =
+                alertService.createAlert(request, email);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
