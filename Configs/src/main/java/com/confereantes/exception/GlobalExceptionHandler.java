@@ -11,6 +11,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import jakarta.persistence.EntityNotFoundException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -47,6 +49,19 @@ public class GlobalExceptionHandler {
 
                 return ResponseEntity
                                 .status(HttpStatus.UNAUTHORIZED)
+                                .body(body);
+        }
+
+        @ExceptionHandler(EntityNotFoundException.class)
+        public ResponseEntity<Map<String, Object>> handleEntityNotFound(EntityNotFoundException exception) {
+                Map<String, Object> body = new LinkedHashMap<>();
+
+                body.put("status", HttpStatus.NOT_FOUND.value());
+                body.put("message", exception.getMessage());
+                body.put("timestamp", Instant.now());
+
+                return ResponseEntity
+                                .status(HttpStatus.NOT_FOUND)
                                 .body(body);
         }
 
