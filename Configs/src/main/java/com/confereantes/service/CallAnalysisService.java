@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.confereantes.dto.CallRequest;
 import com.confereantes.dto.CallResponse;
@@ -35,6 +36,7 @@ public class CallAnalysisService {
     private final RiskAnalysisRepository riskAnalysisRepository;
     private final RiskSignalRepository riskSignalRepository;
     private final UserDecisionRecordRepository userDecisionRecordRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CallAnalysisService(
             AlertRepository alertRepository,
@@ -43,7 +45,8 @@ public class CallAnalysisService {
             CallTranscriptionRepository callTranscriptionRepository,
             RiskAnalysisRepository riskAnalysisRepository,
             RiskSignalRepository riskSignalRepository,
-            UserDecisionRecordRepository userDecisionRecordRepository) {
+            UserDecisionRecordRepository userDecisionRecordRepository,
+            ApplicationEventPublisher eventPublisher) {
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
         this.callRecordingRepository = callRecordingRepository;
@@ -51,6 +54,7 @@ public class CallAnalysisService {
         this.riskAnalysisRepository = riskAnalysisRepository;
         this.riskSignalRepository = riskSignalRepository;
         this.userDecisionRecordRepository = userDecisionRecordRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -65,7 +69,9 @@ public class CallAnalysisService {
         call.setPhoneNumber(request.getPhoneNumber());
         call.setStatus(CallProcessingStatus.RECEIVED);
 
-        return toResponse(callRecordingRepository.save(call));
+        CallRecording savedCall = callRecordingRepository.save(call);
+        eventPublisher.publishEvent(new CallSubmittedEvent(savedCall.getId()));
+        return toResponse(savedCall);
     }
 
     @Transactional(readOnly = true)
@@ -127,7 +133,8 @@ public class CallAnalysisService {
                 analysis.map(item -> item.getConfidence()).orElse(null),
                 analysis.map(item -> item.getRecommendation()).orElse(null),
                 signals,
-                decision.map(item -> item.getDecision()).orElse(null));
+                decision.map(item -> item.getDecision()).orElse(null),
+                call.getFailureReason());
     }
 
     private RiskSignalResponse toSignalResponse(RiskSignal signal) {

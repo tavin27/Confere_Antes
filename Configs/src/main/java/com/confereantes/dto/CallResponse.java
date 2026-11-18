@@ -26,6 +26,7 @@ public class CallResponse {
     private final RiskRecommendation recommendation;
     private final List<RiskSignalResponse> signals;
     private final UserDecision decision;
+    private final String failureReason;
 
     public CallResponse(
             Long id,
@@ -42,7 +43,8 @@ public class CallResponse {
             BigDecimal confidence,
             RiskRecommendation recommendation,
             List<RiskSignalResponse> signals,
-            UserDecision decision) {
+            UserDecision decision,
+            String failureReason) {
         this.id = id;
         this.alertId = alertId;
         this.audioUrl = audioUrl;
@@ -58,6 +60,7 @@ public class CallResponse {
         this.recommendation = recommendation;
         this.signals = signals;
         this.decision = decision;
+        this.failureReason = failureReason;
     }
 
     public Long getId() { return id; }
@@ -75,6 +78,7 @@ public class CallResponse {
     public RiskRecommendation getRecommendation() { return recommendation; }
     public List<RiskSignalResponse> getSignals() { return signals; }
     public UserDecision getDecision() { return decision; }
+    public String getFailureReason() { return failureReason; }
 
     public record RiskSignalResponse(
             String type,
