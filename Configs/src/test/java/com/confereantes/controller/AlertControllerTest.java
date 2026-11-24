@@ -1,4 +1,5 @@
 
+
 package com.confereantes.controller;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -10,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,9 +68,8 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .principal(new UsernamePasswordAuthenticationToken(
-                        "usuario@teste.com",
-                        "senha"))
+                .principal(UsernamePasswordAuthenticationToken.authenticated(
+                        "usuario@teste.com", "n/a", List.of()))
                 .content("""
                         {
                             "contactChannel": "WHATSAPP",
@@ -89,9 +90,8 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .principal(new UsernamePasswordAuthenticationToken(
-                        "usuario@teste.com",
-                        "senha"))
+                .principal(UsernamePasswordAuthenticationToken.authenticated(
+                        "usuario@teste.com", "n/a", List.of()))
                 .content("""
                         {
                             "contactValue": "11999999999"

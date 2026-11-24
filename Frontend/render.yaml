@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: confere-antes-frontend
+    runtime: docker
+    plan: free
+    envVars:
+      - key: API_UPSTREAM   # ex.: https://confere-antes-api.onrender.com
+        sync: false
+      - key: API_HOST       # ex.: confere-antes-api.onrender.com
+        sync: false
