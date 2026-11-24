@@ -32,12 +32,11 @@ public class OpenRouterAiService {
             @Value("${openrouter.base-url:https://openrouter.ai/api/v1}") String baseUrl,
             @Value("${openrouter.transcription-model:openai/whisper-1}") String transcriptionModel,
             @Value("${openrouter.analysis-model:inclusionai/ling-3.2-flash:free}") String analysisModel,
-            RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.transcriptionModel = transcriptionModel;
         this.analysisModel = analysisModel;
-        this.restClient = restClientBuilder.baseUrl(baseUrl).build();
+        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
     }
 

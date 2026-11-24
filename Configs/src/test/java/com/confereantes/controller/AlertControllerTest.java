@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,10 +19,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 
 import com.confereantes.dto.AlertResponse;
 import com.confereantes.model.enums.ContactChannel;
@@ -66,7 +67,8 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
+                .principal(UsernamePasswordAuthenticationToken.authenticated(
+                        "usuario@teste.com", "n/a", List.of()))
                 .content("""
                         {
                             "contactChannel": "WHATSAPP",
@@ -87,7 +89,8 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
+                .principal(UsernamePasswordAuthenticationToken.authenticated(
+                        "usuario@teste.com", "n/a", List.of()))
                 .content("""
                         {
                             "contactValue": "11999999999"
