@@ -5,7 +5,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.confereantes.dto.MessageRequest;
@@ -28,8 +28,10 @@ public class MessageController {
     @PostMapping
     public ResponseEntity<MessageResponse> createMessage(
             @PathVariable Long alertId,
-            @AuthenticationPrincipal(expression = "claims['sub']") String userEmail,
+            Authentication authentication,
             @Valid @RequestBody MessageRequest request) {
+
+        String userEmail = authentication.getName();
 
         Message message = messageService.createMessage(
                 alertId,
@@ -50,7 +52,9 @@ public class MessageController {
     @GetMapping
     public ResponseEntity<List<MessageResponse>> getMessages(
             @PathVariable Long alertId,
-            @AuthenticationPrincipal(expression = "claims['sub']") String userEmail) {
+            Authentication authentication) {
+
+        String userEmail = authentication.getName();
 
         List<Message> messages = messageService.getMessagesByAlert(
                 alertId, userEmail);
