@@ -18,10 +18,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 
 import com.confereantes.dto.AlertResponse;
 import com.confereantes.model.enums.ContactChannel;
@@ -66,7 +66,9 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
+                .principal(new UsernamePasswordAuthenticationToken(
+                        "usuario@teste.com",
+                        "senha"))
                 .content("""
                         {
                             "contactChannel": "WHATSAPP",
@@ -87,7 +89,9 @@ class AlertControllerTest {
 
         mockMvc.perform(post("/alerts")
                 .contentType(MediaType.APPLICATION_JSON)
-                .with(SecurityMockMvcRequestPostProcessors.user("usuario@teste.com"))
+                .principal(new UsernamePasswordAuthenticationToken(
+                        "usuario@teste.com",
+                        "senha"))
                 .content("""
                         {
                             "contactValue": "11999999999"
