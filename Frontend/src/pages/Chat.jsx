@@ -116,8 +116,19 @@ export default function Chat() {
             if (cancelled) return;
             const score = alert.overallRiskScore ?? null;
             sessionsStore.upsert(user.email, { id: alertId, score });
-            setMessages((current) => current.map((message) =>
-              message.kind === "registered" ? { ...message, score } : message));
+            setMessages((current) => {
+              // Atualiza bolhas "registered" existentes e também anexa o score
+              // à última mensagem da IA (bot) para exibição imediata.
+              let lastBotIndex = -1;
+              current.forEach((m, i) => { if (m.from === "bot") lastBotIndex = i; });
+              return current.map((message, index) => {
+                if (message.kind === "registered") return { ...message, score };
+                if (score !== null && index === lastBotIndex && message.from === "bot") {
+                  return { ...message, score };
+                }
+                return message;
+              });
+            });
           } catch {
             // A conversa continua disponível mesmo que a atualização do score falhe.
           }
@@ -240,7 +251,17 @@ export default function Chat() {
                 )}
                 {SAFETY_TIP}
               </>
-            ) : m.text}
+            ) : (
+              <>
+                {m.from === "bot" && m.score !== null && m.score !== undefined && (
+                  <div className="bubble__risk">
+                    Avaliação de risco: <RiskChip score={m.score} />
+                    <RiskMeter score={m.score} />
+                  </div>
+                )}
+                {m.text}
+              </>
+            )}
           </div>
         ))}
         {pending && (
