@@ -28,6 +28,7 @@ import tools.jackson.databind.ObjectMapper;
 public class GeminiAiService {
 
     public record ChatTurn(String role, String content) {}
+    public record ChatAnalysisResult(String reply, Integer riskScore) {}
 
     private static final Logger logger = LoggerFactory.getLogger(GeminiAiService.class);
 
@@ -160,9 +161,9 @@ public class GeminiAiService {
 
     /**
      * Analisa uma mensagem de texto do chat e retorna uma resposta amigável
-     * com avaliação de risco e orientações de segurança.
+     * com avaliação de risco e orientações de segurança, incluindo o score estimado.
      */
-    public String analyzeChatText(List<ChatTurn> conversation) {
+    public ChatAnalysisResult analyzeChatText(List<ChatTurn> conversation) {
         requireApiKey();
         if (conversation == null || conversation.isEmpty()) {
             throw new IllegalArgumentException("A conversa não pode estar vazia");
@@ -179,7 +180,12 @@ public class GeminiAiService {
                 6. Se o relato contiver sinais clássicos de golpe (urgência, pedido de código/token/senha, instalação de app, transferência financeira), alerte claramente.
                 7. Se não houver sinais de risco, tranquilize mas recomende cautela. Responda também a saudações e perguntas curtas usando o contexto anterior.
                 8. Considere o histórico como contexto; responda à última mensagem do usuário e não repita a análise inicial sem necessidade.
-                Não use markdown, emojis ou formatação especial. Responda apenas com texto simples.
+
+                IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um objeto JSON válido (sem markdown, sem fences), contendo:
+                - "reply": string com a resposta em texto simples para o usuário
+                - "riskScore": inteiro de 0 a 100 representando o nível de risco estimado (0=seguro, 100=golpe certo)
+
+                Exemplo de resposta válida: {"reply":"Sua mensagem aqui","riskScore":75}
                 """;
 
         List<Map<String, Object>> contents = conversation.stream()
@@ -198,14 +204,34 @@ public class GeminiAiService {
                         "parts", List.of(Map.of("text", systemPrompt))),
                 "generationConfig", Map.of(
                         "temperature", 0.3,
-                        "maxOutputTokens", 800));
+                        "maxOutputTokens", 800,
+                        "responseMimeType", "application/json"));
 
         JsonNode response = postGenerateContent(chatModel, request);
         String text = extractText(response);
         if (text.isBlank()) {
-            return "Não consegui analisar sua mensagem no momento. Tente novamente.";
+            return new ChatAnalysisResult("Não consegui analisar sua mensagem no momento. Tente novamente.", null);
         }
-        return text;
+
+        try {
+            JsonNode result = objectMapper.readTree(stripMarkdownFence(text));
+            String reply = result.path("reply").asString("").trim();
+            Integer riskScore = null;
+            JsonNode scoreNode = result.path("riskScore");
+            if (scoreNode.isNumber()) {
+                int score = scoreNode.asInt(-1);
+                if (score >= 0 && score <= 100) {
+                    riskScore = score;
+                }
+            }
+            if (reply.isBlank()) {
+                reply = text;
+            }
+            return new ChatAnalysisResult(reply, riskScore);
+        } catch (Exception exception) {
+            logger.warn("Failed to parse chat analysis JSON, returning raw text: {}", exception.getMessage());
+            return new ChatAnalysisResult(text, null);
+        }
     }
 
     public void validateConfiguration() {

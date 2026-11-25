@@ -48,16 +48,22 @@ public class MessageAiReplyWorker {
                             message.getContent()))
                     .toList();
 
-            String reply = callWithRetry(conversation, alertId);
+            GeminiAiService.ChatAnalysisResult analysis = callWithRetry(conversation, alertId);
             Alert alert = alertRepository.findById(alertId).orElse(null);
             if (alert == null) {
                 logger.warn("Alert {} not found; AI reply was discarded", alertId);
                 return;
             }
 
+            if (analysis.riskScore() != null) {
+                alert.setOverallRiskScore(analysis.riskScore());
+                alertRepository.save(alert);
+                logger.info("Updated overallRiskScore={} for alert {}", analysis.riskScore(), alertId);
+            }
+
             Message aiMessage = new Message();
             aiMessage.setAlert(alert);
-            aiMessage.setContent(reply);
+            aiMessage.setContent(analysis.reply());
             aiMessage.setSender(MessageSender.CONTATO);
             aiMessage.setSource(MessageSource.AUTOMATICO);
             messageRepository.save(aiMessage);
@@ -67,7 +73,7 @@ public class MessageAiReplyWorker {
         }
     }
 
-    private String callWithRetry(List<GeminiAiService.ChatTurn> conversation, Long alertId) {
+    private GeminiAiService.ChatAnalysisResult callWithRetry(List<GeminiAiService.ChatTurn> conversation, Long alertId) {
         int maxAttempts = 3;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
