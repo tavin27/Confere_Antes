@@ -48,7 +48,7 @@ public class MessageAiReplyWorker {
                             message.getContent()))
                     .toList();
 
-            String reply = geminiAiService.analyzeChatText(conversation);
+            String reply = callWithRetry(conversation, alertId);
             Alert alert = alertRepository.findById(alertId).orElse(null);
             if (alert == null) {
                 logger.warn("Alert {} not found; AI reply was discarded", alertId);
@@ -65,5 +65,30 @@ public class MessageAiReplyWorker {
         } catch (Exception exception) {
             logger.error("Could not generate Gemini reply for alert {}", alertId, exception);
         }
+    }
+
+    private String callWithRetry(List<GeminiAiService.ChatTurn> conversation, Long alertId) {
+        int maxAttempts = 3;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return geminiAiService.analyzeChatText(conversation);
+            } catch (IllegalStateException exception) {
+                boolean isTransient = exception.getMessage() != null
+                        && (exception.getMessage().contains("503") || exception.getMessage().contains("429"));
+                if (!isTransient || attempt == maxAttempts) {
+                    throw exception;
+                }
+                long waitMs = attempt * 3000L;
+                logger.warn("Gemini returned transient error for alert {}, retrying in {}ms (attempt {}/{})",
+                        alertId, waitMs, attempt, maxAttempts);
+                try {
+                    Thread.sleep(waitMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw exception;
+                }
+            }
+        }
+        throw new IllegalStateException("Retry exhausted for alert " + alertId);
     }
 }
