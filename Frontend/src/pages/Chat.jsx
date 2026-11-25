@@ -60,11 +60,13 @@ export default function Chat() {
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const recognitionRef = useRef(null);
+  const voiceInitializedRef = useRef(false);
   const createdHere = useRef(null);
   const endRef = useRef(null);
 
   // Inicializa Web Speech API para entrada por voz (ideal para situações de pânico)
   useEffect(() => {
+    if (voiceInitializedRef.current) return undefined;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setVoiceSupported(false);
@@ -74,14 +76,19 @@ export default function Chat() {
     recognition.lang = "pt-BR";
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    let processed = false;
     recognition.onresult = (event) => {
+      if (processed) return;
+      processed = true;
       const transcript = event.results[0][0].transcript;
-      setDraft((prev) => prev ? `${prev} ${transcript}` : transcript);
+      setDraft((prev) => prev.trim() ? `${prev.trim()} ${transcript}` : transcript);
       setListening(false);
     };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
+    recognition.onerror = () => { processed = true; setListening(false); };
+    recognition.onend = () => { processed = true; setListening(false); };
     recognitionRef.current = recognition;
+    voiceInitializedRef.current = true;
     return () => { recognition.abort(); };
   }, []);
 
