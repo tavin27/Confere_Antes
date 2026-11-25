@@ -22,3 +22,7 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+      - key: ML_SERVICE_ENABLED
+        value: "true"

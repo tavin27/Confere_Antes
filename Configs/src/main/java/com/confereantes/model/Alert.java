@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 
 import com.confereantes.model.enums.ContactChannel;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -38,6 +41,10 @@ public class Alert {
 
     @Column(name = "overall_risk_score")
     private Integer overallRiskScore;
+
+    @Column(name = "ml_classification")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String mlClassification;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -86,6 +93,14 @@ public class Alert {
 
     public void setOverallRiskScore(Integer overallRiskScore) {
         this.overallRiskScore = overallRiskScore;
+    }
+
+    public String getMlClassification() {
+        return mlClassification;
+    }
+
+    public void setMlClassification(String mlClassification) {
+        this.mlClassification = mlClassification;
     }
 
     public LocalDateTime getCreatedAt() {

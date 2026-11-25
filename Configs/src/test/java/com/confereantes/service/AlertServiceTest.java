@@ -113,4 +113,24 @@ class AlertServiceTest {
         verify(alertRepository).save(any(Alert.class));
     }
 
+    @Test
+    void shouldReturnAlertScoreOnlyForItsOwner() {
+        String userEmail = "usuario@teste.com";
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(7L);
+        Alert alert = new Alert();
+        alert.setContactChannel(ContactChannel.WHATSAPP);
+        alert.setContactValue("11999999999");
+        alert.setOverallRiskScore(85);
+
+        when(userRepository.findByEmail(userEmail)).thenReturn(Optional.of(user));
+        when(alertRepository.findByIdAndUserId(3L, 7L)).thenReturn(Optional.of(alert));
+
+        AlertResponse response = alertService.getAlert(3L, userEmail);
+
+        assertEquals(85, response.getOverallRiskScore());
+        assertEquals(ContactChannel.WHATSAPP, response.getContactChannel());
+        verify(alertRepository).findByIdAndUserId(3L, 7L);
+    }
+
 }

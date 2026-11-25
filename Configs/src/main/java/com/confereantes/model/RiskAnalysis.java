@@ -6,6 +6,9 @@ import java.time.LocalDateTime;
 import com.confereantes.model.enums.RiskLevel;
 import com.confereantes.model.enums.RiskRecommendation;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -56,9 +59,13 @@ public class RiskAnalysis {
     @Column(name = "model_version", length = 80)
     private String modelVersion;
 
-    @Column(name = "raw_response", columnDefinition = "jsonb")
+    @Column(name = "raw_response")
     @JdbcTypeCode(SqlTypes.JSON)
     private String rawResponse;
+
+    @Column(name = "ml_classification")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private String mlClassification;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -85,5 +92,7 @@ public class RiskAnalysis {
     public void setModelVersion(String modelVersion) { this.modelVersion = modelVersion; }
     public String getRawResponse() { return rawResponse; }
     public void setRawResponse(String rawResponse) { this.rawResponse = rawResponse; }
+    public String getMlClassification() { return mlClassification; }
+    public void setMlClassification(String mlClassification) { this.mlClassification = mlClassification; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

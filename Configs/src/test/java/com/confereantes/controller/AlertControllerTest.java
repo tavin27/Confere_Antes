@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -61,6 +62,7 @@ class AlertControllerTest {
                 ContactChannel.WHATSAPP,
                 "11999999999",
                 null,
+                null,
                 LocalDateTime.of(2026, 11, 15, 15, 0));
 
         when(alertService.createAlert(any(), eq("usuario@teste.com")))
@@ -98,5 +100,26 @@ class AlertControllerTest {
                         }
                         """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnAlertAndPersistedRiskScore() throws Exception {
+        AlertResponse response = new AlertResponse(
+                1L,
+                ContactChannel.WHATSAPP,
+                "11999999999",
+                85,
+                null,
+                LocalDateTime.of(2026, 11, 15, 15, 0));
+        when(alertService.getAlert(1L, "usuario@teste.com")).thenReturn(response);
+
+        mockMvc.perform(get("/alerts/1")
+                .principal(UsernamePasswordAuthenticationToken.authenticated(
+                        "usuario@teste.com", "n/a", List.of())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.overallRiskScore").value(85));
+
+        verify(alertService).getAlert(1L, "usuario@teste.com");
     }
 }

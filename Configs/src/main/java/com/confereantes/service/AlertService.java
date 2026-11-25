@@ -46,6 +46,22 @@ public class AlertService {
                 savedAlert.getContactChannel(),
                 savedAlert.getContactValue(),
                 savedAlert.getOverallRiskScore(),
+                savedAlert.getMlClassification(),
                 savedAlert.getCreatedAt());
+    }
+
+    @Transactional(readOnly = true)
+    public AlertResponse getAlert(Long alertId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        Alert alert = alertRepository.findByIdAndUserId(alertId, user.getId())
+                .orElseThrow(() -> new EntityNotFoundException("Alerta não encontrado"));
+        return new AlertResponse(
+                alert.getId(),
+                alert.getContactChannel(),
+                alert.getContactValue(),
+                alert.getOverallRiskScore(),
+                alert.getMlClassification(),
+                alert.getCreatedAt());
     }
 }

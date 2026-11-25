@@ -68,6 +68,12 @@ public class CallProcessingPersistenceService {
 
     @Transactional
     public void saveAnalysis(Long callId, CallRiskResult result, String provider, String model) {
+        saveAnalysis(callId, result, provider, model, null);
+    }
+
+    @Transactional
+    public void saveAnalysis(Long callId, CallRiskResult result, String provider, String model,
+                             MlClassificationResult mlResult) {
         CallRecording call = findCall(callId);
         RiskAnalysis analysis = riskAnalysisRepository.findByCallRecordingId(callId)
                 .orElseGet(RiskAnalysis::new);
@@ -80,6 +86,14 @@ public class CallProcessingPersistenceService {
         analysis.setProvider(provider);
         analysis.setModelVersion(model);
         analysis.setRawResponse(result.rawResponse());
+        if (mlResult != null) {
+            try {
+                String mlJson = new tools.jackson.databind.ObjectMapper().writeValueAsString(mlResult);
+                analysis.setMlClassification(mlJson);
+            } catch (Exception jsonException) {
+                // Falha na serialização ML não deve bloquear o fluxo principal
+            }
+        }
         RiskAnalysis savedAnalysis = riskAnalysisRepository.save(analysis);
 
         riskSignalRepository.deleteAll(riskSignalRepository.findByRiskAnalysisId(savedAnalysis.getId()));

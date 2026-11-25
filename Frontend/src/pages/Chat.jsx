@@ -81,15 +81,22 @@ export default function Chat() {
     setError("");
     alertsApi
       .messages(id)
-      .then((list) => {
+      .then(async (list) => {
         if (cancelled) return;
         setMessages(mapMessages(list));
         setAwaitingAi(needsAiReply(list));
+        try {
+          const alert = await alertsApi.get(id);
+          if (cancelled) return;
+          sessionsStore.upsert(user.email, { id, score: alert.overallRiskScore ?? null });
+        } catch {
+          // Falha ao atualizar o score não deve impedir a abertura da conversa.
+        }
       })
       .catch((err) => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, [param]);
+  }, [param, user.email]);
 
   // Polling: busca novas mensagens (respostas da IA) a cada 3 segundos quando há uma sessão ativa
   useEffect(() => {
@@ -104,7 +111,17 @@ export default function Chat() {
         if (cancelled) return;
         setMessages(mapMessages(list));
         if (!needsAiReply(list)) {
-          setAwaitingAi(false);
+          try {
+            const alert = await alertsApi.get(alertId);
+            if (cancelled) return;
+            const score = alert.overallRiskScore ?? null;
+            sessionsStore.upsert(user.email, { id: alertId, score });
+            setMessages((current) => current.map((message) =>
+              message.kind === "registered" ? { ...message, score } : message));
+          } catch {
+            // A conversa continua disponível mesmo que a atualização do score falhe.
+          }
+          if (!cancelled) setAwaitingAi(false);
         } else if (attempts >= maxAttempts) {
           setAwaitingAi(false);
           setError("A IA ainda nÃ£o respondeu. Tente novamente mais tarde ou confira os logs do backend.");
@@ -121,7 +138,7 @@ export default function Chat() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [alertId, awaitingAi, busy, loading]);
+  }, [alertId, awaitingAi, busy, loading, user.email]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [messages, pending]);
 

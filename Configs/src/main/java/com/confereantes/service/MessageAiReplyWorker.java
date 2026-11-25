@@ -16,6 +16,8 @@ import com.confereantes.model.enums.MessageSource;
 import com.confereantes.repository.AlertRepository;
 import com.confereantes.repository.MessageRepository;
 
+import tools.jackson.databind.ObjectMapper;
+
 @Component
 public class MessageAiReplyWorker {
 
@@ -25,14 +27,20 @@ public class MessageAiReplyWorker {
     private final MessageRepository messageRepository;
     private final AlertRepository alertRepository;
     private final GeminiAiService geminiAiService;
+    private final MlClassificationService mlClassificationService;
+    private final ObjectMapper objectMapper;
 
     public MessageAiReplyWorker(
             MessageRepository messageRepository,
             AlertRepository alertRepository,
-            GeminiAiService geminiAiService) {
+            GeminiAiService geminiAiService,
+            MlClassificationService mlClassificationService,
+            ObjectMapper objectMapper) {
         this.messageRepository = messageRepository;
         this.alertRepository = alertRepository;
         this.geminiAiService = geminiAiService;
+        this.mlClassificationService = mlClassificationService;
+        this.objectMapper = objectMapper;
     }
 
     @Async
@@ -48,6 +56,21 @@ public class MessageAiReplyWorker {
                             message.getContent()))
                     .toList();
 
+            // Classificação ML própria (não bloqueia o fluxo se falhar)
+            String lastUserText = conversation.stream()
+                    .filter(t -> "user".equals(t.role()))
+                    .reduce((first, second) -> second)
+                    .map(GeminiAiService.ChatTurn::content)
+                    .orElse("");
+            MlClassificationResult mlResult = null;
+            if (!lastUserText.isBlank()) {
+                mlResult = mlClassificationService.classify(lastUserText);
+                if (mlResult != null) {
+                    logger.info("ML classification for alert {}: label={} prob={} risk={}",
+                            alertId, mlResult.label(), mlResult.probability(), mlResult.riskLevel());
+                }
+            }
+
             GeminiAiService.ChatAnalysisResult analysis = callWithRetry(conversation, alertId);
             Alert alert = alertRepository.findById(alertId).orElse(null);
             if (alert == null) {
@@ -57,7 +80,19 @@ public class MessageAiReplyWorker {
 
             if (analysis.riskScore() != null) {
                 alert.setOverallRiskScore(analysis.riskScore());
-                alertRepository.save(alert);
+            }
+
+            // Salva classificação ML no Alert (campo JSONB da migration V7)
+            if (mlResult != null) {
+                try {
+                    String mlJson = objectMapper.writeValueAsString(mlResult);
+                    alert.setMlClassification(mlJson);
+                } catch (Exception jsonException) {
+                    logger.warn("Failed to serialize ML result for alert {}: {}", alertId, jsonException.getMessage());
+                }
+            }
+            alertRepository.save(alert);
+            if (analysis.riskScore() != null) {
                 logger.info("Updated overallRiskScore={} for alert {}", analysis.riskScore(), alertId);
             }
 

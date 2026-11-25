@@ -11,6 +11,7 @@ public class AlertResponse {
     private ContactChannel contactChannel;
     private String contactValue;
     private Integer overallRiskScore;
+    private String mlClassification;
     private LocalDateTime createdAt;
 
     public AlertResponse() {
@@ -18,11 +19,12 @@ public class AlertResponse {
 
     public AlertResponse(Long id, ContactChannel contactChannel,
             String contactValue, Integer overallRiskScore,
-            LocalDateTime createdAt) {
+            String mlClassification, LocalDateTime createdAt) {
         this.id = id;
         this.contactChannel = contactChannel;
         this.contactValue = contactValue;
         this.overallRiskScore = overallRiskScore;
+        this.mlClassification = mlClassification;
         this.createdAt = createdAt;
     }
 
@@ -40,6 +42,10 @@ public class AlertResponse {
 
     public Integer getOverallRiskScore() {
         return overallRiskScore;
+    }
+
+    public String getMlClassification() {
+        return mlClassification;
     }
 
     public LocalDateTime getCreatedAt() {
