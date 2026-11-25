@@ -17,21 +17,18 @@ public class CallProcessingWorker {
 
     private final CallProcessingPersistenceService persistenceService;
     private final RemoteAudioFetcher audioFetcher;
-    private final OpenRouterAiService openRouterAiService;
-    private final String transcriptionModel;
-    private final String analysisModel;
+    private final GeminiAiService geminiAiService;
+    private final String model;
 
     public CallProcessingWorker(
             CallProcessingPersistenceService persistenceService,
             RemoteAudioFetcher audioFetcher,
-            OpenRouterAiService openRouterAiService,
-            @Value("${openrouter.transcription-model:openai/whisper-1}") String transcriptionModel,
-            @Value("${openrouter.analysis-model:inclusionai/ling-3.2-flash:free}") String analysisModel) {
+            GeminiAiService geminiAiService,
+            @Value("${gemini.model:gemini-3.8-flash}") String model) {
         this.persistenceService = persistenceService;
         this.audioFetcher = audioFetcher;
-        this.openRouterAiService = openRouterAiService;
-        this.transcriptionModel = transcriptionModel;
-        this.analysisModel = analysisModel;
+        this.geminiAiService = geminiAiService;
+        this.model = model;
     }
 
     @Async
@@ -39,15 +36,15 @@ public class CallProcessingWorker {
     public void process(CallSubmittedEvent event) {
         Long callId = event.callId();
         try {
-            openRouterAiService.validateConfiguration();
+            geminiAiService.validateConfiguration();
             persistenceService.updateStatus(callId, CallProcessingStatus.TRANSCRIBING);
             AudioFile audio = audioFetcher.fetch(persistenceService.findAudioUrl(callId));
-            String transcript = openRouterAiService.transcribe(audio);
-            persistenceService.saveTranscription(callId, transcript, "openrouter:" + transcriptionModel);
+            String transcript = geminiAiService.transcribe(audio);
+            persistenceService.saveTranscription(callId, transcript, "gemini:" + model);
 
             persistenceService.updateStatus(callId, CallProcessingStatus.ANALYZING);
-            CallRiskResult result = openRouterAiService.analyze(transcript);
-            persistenceService.saveAnalysis(callId, result, "openrouter", analysisModel);
+            CallRiskResult result = geminiAiService.analyze(transcript);
+            persistenceService.saveAnalysis(callId, result, "gemini", model);
         } catch (RuntimeException exception) {
             logger.error("Falha ao processar ligação id={}: {}", callId, exception.getMessage());
             try {
