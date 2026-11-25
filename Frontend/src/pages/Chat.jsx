@@ -74,19 +74,31 @@ export default function Chat() {
     }
     const recognition = new SpeechRecognition();
     recognition.lang = "pt-BR";
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
-    let processed = false;
+    let finalTranscript = "";
     recognition.onresult = (event) => {
-      if (processed) return;
-      processed = true;
-      const transcript = event.results[0][0].transcript;
-      setDraft((prev) => prev.trim() ? `${prev.trim()} ${transcript}` : transcript);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += (finalTranscript ? " " : "") + event.results[i][0].transcript;
+        }
+      }
+    };
+    recognition.onerror = () => {
+      if (finalTranscript) {
+        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalTranscript}` : finalTranscript);
+      }
+      finalTranscript = "";
       setListening(false);
     };
-    recognition.onerror = () => { processed = true; setListening(false); };
-    recognition.onend = () => { processed = true; setListening(false); };
+    recognition.onend = () => {
+      if (finalTranscript) {
+        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalTranscript}` : finalTranscript);
+      }
+      finalTranscript = "";
+      setListening(false);
+    };
     recognitionRef.current = recognition;
     voiceInitializedRef.current = true;
     return () => { recognition.abort(); };
