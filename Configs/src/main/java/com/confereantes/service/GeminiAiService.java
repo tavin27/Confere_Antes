@@ -153,6 +153,43 @@ public class GeminiAiService {
         }
     }
 
+    /**
+     * Analisa uma mensagem de texto do chat e retorna uma resposta amigável
+     * com avaliação de risco e orientações de segurança.
+     */
+    public String analyzeChatText(String userMessage) {
+        requireApiKey();
+
+        String systemPrompt = """
+                Você é o assistente do aplicativo Confere Antes, que ajuda pessoas a identificar golpes por telefone, SMS, WhatsApp e e-mail.
+                O usuário está descrevendo uma situação suspeita. Sua tarefa é:
+                1. Avaliar o nível de risco (baixo, médio, alto ou crítico) com base nos sinais presentes.
+                2. Explicar de forma clara e empática POR QUE a situação parece segura ou perigosa.
+                3. Dar orientações práticas e acionáveis sobre o que fazer agora.
+                4. NUNCA pedir dados pessoais, senhas, tokens ou códigos.
+                5. Responder em português do Brasil, de forma direta e acessível (máximo 300 palavras).
+                6. Se o relato contiver sinais clássicos de golpe (urgência, pedido de código/token/senha, instalação de app, transferência financeira), alerte claramente.
+                7. Se não houver sinais de risco, tranquilize mas recomende cautela.
+                Não use markdown, emojis ou formatação especial. Responda apenas com texto simples.
+                """;
+
+        Map<String, Object> request = Map.of(
+                "contents", List.of(Map.of(
+                        "parts", List.of(Map.of("text", userMessage)))),
+                "systemInstruction", Map.of(
+                        "parts", List.of(Map.of("text", systemPrompt))),
+                "generationConfig", Map.of(
+                        "temperature", 0.3,
+                        "maxOutputTokens", 800));
+
+        JsonNode response = postGenerateContent(request);
+        String text = extractText(response);
+        if (text.isBlank()) {
+            return "Não consegui analisar sua mensagem no momento. Tente novamente.";
+        }
+        return text;
+    }
+
     public void validateConfiguration() {
         requireApiKey();
     }

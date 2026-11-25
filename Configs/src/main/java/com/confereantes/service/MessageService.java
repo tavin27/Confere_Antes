@@ -6,6 +6,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Async;
+
 import com.confereantes.model.Alert;
 import com.confereantes.model.Message;
 import com.confereantes.model.User;
@@ -20,18 +24,23 @@ import jakarta.persistence.EntityNotFoundException;
 @Service
 public class MessageService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MessageService.class);
+
     private final MessageRepository messageRepository;
     private final AlertRepository alertRepository;
     private final UserRepository userRepository;
+    private final GeminiAiService geminiAiService;
 
     public MessageService(
             MessageRepository messageRepository,
             AlertRepository alertRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            GeminiAiService geminiAiService) {
 
         this.messageRepository = messageRepository;
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
+        this.geminiAiService = geminiAiService;
     }
 
     @Transactional
@@ -57,7 +66,37 @@ public class MessageService {
         message.setSender(sender);
         message.setSource(MessageSource.MANUAL);
 
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+
+        if (sender == MessageSender.USUARIO) {
+            analyzeAndReplyAsync(alertId, content);
+        }
+
+        return saved;
+    }
+
+    @Async
+    public void analyzeAndReplyAsync(Long alertId, String userMessage) {
+        try {
+            String reply = geminiAiService.analyzeChatText(userMessage);
+
+            Alert alert = alertRepository.findById(alertId).orElse(null);
+            if (alert == null) {
+                logger.warn("Alerta {} não encontrado para resposta automática", alertId);
+                return;
+            }
+
+            Message botMessage = new Message();
+            botMessage.setAlert(alert);
+            botMessage.setContent(reply);
+            botMessage.setSender(MessageSender.CONTATO);
+            botMessage.setSource(MessageSource.AUTOMATICO);
+            messageRepository.save(botMessage);
+
+            logger.info("Resposta automática salva para alerta {}", alertId);
+        } catch (Exception exception) {
+            logger.error("Falha ao gerar resposta automática para alerta {}: {}", alertId, exception.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

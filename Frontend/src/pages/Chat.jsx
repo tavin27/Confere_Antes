@@ -70,6 +70,23 @@ export default function Chat() {
     return () => { cancelled = true; };
   }, [param]);
 
+  // Polling: busca novas mensagens (respostas da IA) a cada 3 segundos quando há uma sessão ativa
+  useEffect(() => {
+    if (!alertId || busy || loading) return undefined;
+    const interval = setInterval(() => {
+      alertsApi.messages(alertId).then((list) => {
+        const mapped = list.map((m) => ({ id: `m${m.id}`, from: m.sender === "USUARIO" ? "user" : "contact", text: m.content }));
+        setMessages((prev) => {
+          if (mapped.length > prev.filter((m) => m.id !== "greeting").length) {
+            return mapped;
+          }
+          return prev;
+        });
+      }).catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [alertId, busy, loading]);
+
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [messages, pending]);
 
   const push = (message) => {
