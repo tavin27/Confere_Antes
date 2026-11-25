@@ -10,7 +10,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import java.time.Duration;
+
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -38,7 +41,13 @@ public class GeminiAiService {
             ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.model = model;
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(15));
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        this.restClient = RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(factory)
+                .build();
         this.objectMapper = objectMapper;
     }
 
@@ -53,10 +62,11 @@ public class GeminiAiService {
                 "contents", List.of(Map.of(
                         "parts", List.of(
                                 Map.of("inlineData", inlineData),
-                                Map.of("text", "Transcreva este áudio em português do Brasil. Retorne apenas o texto transcrito, sem explicações ou formatação adicional.")))),
+                                Map.of("text", "Transcreva este áudio em português do Brasil. Retorne APENAS o texto transcrito, sem explicações, sem markdown, sem formatação adicional. Se o áudio não contiver fala inteligível, retorne a palavra VAZIO.")))),
                 "generationConfig", Map.of(
                         "temperature", 0.0,
-                        "maxOutputTokens", 4096));
+                        "maxOutputTokens", 4096,
+                        "responseMimeType", "text/plain"));
 
         JsonNode response = postGenerateContent(request);
         String text = extractText(response);
