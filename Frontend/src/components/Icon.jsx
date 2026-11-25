@@ -9,6 +9,7 @@ const PATHS = {
   chev: <path d="M9 6l6 6-6 6" />,
   back: <path d="M15 6l-6 6 6 6" />,
   send: <path d="M4 12l16-8-6 16-3-7z" />,
+  mic: <><rect x="9" y="2" width="6" height="11" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><line x1="12" y1="17" x2="12" y2="21" /><line x1="8" y1="21" x2="16" y2="21" /></>,
 };
 
 export default function Icon({ name, size = 24 }) {

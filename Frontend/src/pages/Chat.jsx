@@ -57,8 +57,48 @@ export default function Chat() {
   const [loading, setLoading] = useState(Boolean(param));
   const [error, setError] = useState("");
   const [pending, setPending] = useState(null); // { text, bubbleId } aguardando a escolha do canal
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(true);
+  const recognitionRef = useRef(null);
   const createdHere = useRef(null);
   const endRef = useRef(null);
+
+  // Inicializa Web Speech API para entrada por voz (ideal para situações de pânico)
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceSupported(false);
+      return undefined;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setDraft((prev) => prev ? `${prev} ${transcript}` : transcript);
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    return () => { recognition.abort(); };
+  }, []);
+
+  function toggleVoice() {
+    if (!recognitionRef.current) return;
+    if (listening) {
+      recognitionRef.current.stop();
+    } else {
+      setError("");
+      try {
+        recognitionRef.current.start();
+        setListening(true);
+      } catch {
+        setListening(false);
+      }
+    }
+  }
 
   // Abre uma sessão existente (histórico) ou reinicia ao pedir uma nova análise.
   useEffect(() => {
@@ -289,13 +329,27 @@ export default function Chat() {
         {awaitingAi && <p className="muted" role="status">A IA estÃ¡ analisando sua mensagem...</p>}
         {error && <p className="error" role="alert">{error}</p>}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); submit(draft); }}>
+          {voiceSupported && (
+            <button
+              type="button"
+              className={`mic${listening ? " mic--active" : ""}`}
+              aria-label={listening ? "Parar de ouvir" : "Falar em vez de digitar"}
+              aria-pressed={listening}
+              disabled={busy || awaitingAi || Boolean(pending) || loading}
+              onClick={toggleVoice}
+            >
+              <Icon name="mic" size={22} />
+              {listening && <span className="mic__pulse" aria-hidden="true" />}
+            </button>
+          )}
           <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={10000}
             aria-label="Descreva o alerta" disabled={Boolean(pending) || loading || awaitingAi}
-            placeholder={pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
+            placeholder={listening ? "Ouvindo… fale agora" : pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
           <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || awaitingAi || Boolean(pending) || loading}>
             <Icon name="send" size={22} />
           </button>
         </form>
+        {listening && <p className="muted" role="status">🎙️ Ouvindo… fale claramente. Toque no microfone para parar.</p>}
       </div>
       <BottomNav />
     </div>
