@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.confereantes.model.Alert;
 import com.confereantes.model.Message;
@@ -42,6 +43,9 @@ class MessageServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private MessageService messageService;
@@ -88,6 +92,23 @@ class MessageServiceTest {
         verify(userRepository).findByEmail(email);
         verify(alertRepository).findByIdAndUserId(alertId, userId);
         verify(messageRepository).save(any(Message.class));
+    }
+
+    @Test
+    void shouldPublishAiReplyEventForUserMessage() {
+        Long alertId = 1L;
+        Long userId = 10L;
+        String email = "test@example.com";
+        User user = mock(User.class);
+        when(user.getId()).thenReturn(userId);
+        Alert alert = new Alert();
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        when(alertRepository.findByIdAndUserId(alertId, userId)).thenReturn(Optional.of(alert));
+        when(messageRepository.save(any(Message.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        messageService.createMessage(alertId, email, "O que eu faco?", MessageSender.USUARIO);
+
+        verify(eventPublisher).publishEvent(new UserMessageSubmittedEvent(alertId));
     }
 
     @Test

@@ -5,12 +5,14 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 import com.confereantes.model.enums.RiskLevel;
 import com.confereantes.model.enums.RiskRecommendation;
@@ -20,6 +22,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class OpenRouterAiService {
+
+    public record ChatTurn(String role, String content) {}
 
     private final String apiKey;
     private final String transcriptionModel;
@@ -36,7 +40,13 @@ public class OpenRouterAiService {
         this.apiKey = apiKey;
         this.transcriptionModel = transcriptionModel;
         this.analysisModel = analysisModel;
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(10));
+        requestFactory.setReadTimeout(Duration.ofSeconds(45));
+        this.restClient = RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(requestFactory)
+                .build();
         this.objectMapper = objectMapper;
     }
 
@@ -134,6 +144,45 @@ public class OpenRouterAiService {
         }
     }
 
+    public String analyzeChatText(List<ChatTurn> conversation) {
+        requireApiKey();
+        String systemPrompt = """
+                Voce e o assistente do aplicativo Confere Antes, especializado em ajudar pessoas a identificar golpes por telefone, SMS, WhatsApp e e-mail.
+                Responda a ultima mensagem considerando o historico da conversa.
+                Seja empatico, direto e use portugues do Brasil, com no maximo 180 palavras.
+                Explique os sinais de risco e diga o que a pessoa pode fazer agora.
+                Nunca peca nem repita senhas, tokens, codigos de verificacao ou dados bancarios.
+                Se houver pedido de urgencia, transferencia, instalacao de aplicativo ou compartilhamento de codigo, alerte claramente.
+                Nao afirme que um contato e golpe sem evidencias suficientes; apresente a avaliacao como orientacao, nao como certeza.
+                Responda tambem a mensagens curtas ou cumprimentos, sem ignorar o usuario.
+                Retorne apenas texto simples, sem markdown.
+                """;
+
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", systemPrompt));
+        for (ChatTurn turn : conversation) {
+            if (turn == null || turn.content() == null || turn.content().isBlank()) continue;
+            String role = "assistant".equals(turn.role()) ? "assistant" : "user";
+            messages.add(Map.of("role", role, "content", turn.content()));
+        }
+        if (messages.size() == 1) {
+            throw new IllegalArgumentException("A conversa nao possui mensagem para analisar");
+        }
+
+        Map<String, Object> request = Map.of(
+                "model", analysisModel,
+                "stream", false,
+                "temperature", 0.3,
+                "max_tokens", 800,
+                "messages", messages);
+        JsonNode response = post("/chat/completions", request);
+        String content = response.path("choices").path(0).path("message").path("content").asString("").trim();
+        if (content.isBlank()) {
+            throw new IllegalStateException("OpenRouter retornou uma resposta de texto vazia");
+        }
+        return content;
+    }
+
     private JsonNode post(String path, Map<String, Object> request) {
         try {
             JsonNode response = restClient.post()
@@ -149,7 +198,9 @@ public class OpenRouterAiService {
             return response;
         } catch (RestClientResponseException exception) {
             throw new IllegalStateException(
-                    "OpenRouter retornou HTTP " + exception.getStatusCode().value(), exception);
+                    "OpenRouter retornou HTTP " + exception.getStatusCode().value()
+                            + ": " + exception.getResponseBodyAsString(),
+                    exception);
         }
     }
 

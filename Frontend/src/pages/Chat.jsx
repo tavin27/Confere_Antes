@@ -26,6 +26,24 @@ const SAFETY_TIP =
 let sequence = 0;
 const localId = () => `l${++sequence}`;
 
+function mapMessages(list) {
+  return list.map((message) => ({
+    id: `m${message.id}`,
+    from: message.source === "AUTOMATICO" ? "bot" : message.sender === "USUARIO" ? "user" : "contact",
+    text: message.content,
+  }));
+}
+
+function needsAiReply(list) {
+  let lastUserMessage = -1;
+  let lastAiReply = -1;
+  list.forEach((message, index) => {
+    if (message.sender === "USUARIO") lastUserMessage = index;
+    if (message.source === "AUTOMATICO") lastAiReply = index;
+  });
+  return lastUserMessage > lastAiReply;
+}
+
 export default function Chat() {
   const { alertId: param } = useParams();
   const navigate = useNavigate();
@@ -35,6 +53,7 @@ export default function Chat() {
   const [messages, setMessages] = useState(param ? [] : [GREETING]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [awaitingAi, setAwaitingAi] = useState(false);
   const [loading, setLoading] = useState(Boolean(param));
   const [error, setError] = useState("");
   const [pending, setPending] = useState(null); // { text, bubbleId } aguardando a escolha do canal
@@ -47,6 +66,7 @@ export default function Chat() {
       setAlertId(null);
       setMessages([GREETING]);
       setPending(null);
+      setAwaitingAi(false);
       setLoading(false);
       return undefined;
     }
@@ -63,7 +83,8 @@ export default function Chat() {
       .messages(id)
       .then((list) => {
         if (cancelled) return;
-        setMessages(list.map((m) => ({ id: `m${m.id}`, from: m.sender === "USUARIO" ? "user" : "contact", text: m.content })));
+        setMessages(mapMessages(list));
+        setAwaitingAi(needsAiReply(list));
       })
       .catch((err) => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false));
@@ -72,20 +93,35 @@ export default function Chat() {
 
   // Polling: busca novas mensagens (respostas da IA) a cada 3 segundos quando há uma sessão ativa
   useEffect(() => {
-    if (!alertId || busy || loading) return undefined;
-    const interval = setInterval(() => {
-      alertsApi.messages(alertId).then((list) => {
-        const mapped = list.map((m) => ({ id: `m${m.id}`, from: m.sender === "USUARIO" ? "user" : "contact", text: m.content }));
-        setMessages((prev) => {
-          if (mapped.length > prev.filter((m) => m.id !== "greeting").length) {
-            return mapped;
-          }
-          return prev;
-        });
-      }).catch(() => {});
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [alertId, busy, loading]);
+    if (!alertId || !awaitingAi || busy || loading) return undefined;
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 24;
+    const poll = async () => {
+      attempts += 1;
+      try {
+        const list = await alertsApi.messages(alertId);
+        if (cancelled) return;
+        setMessages(mapMessages(list));
+        if (!needsAiReply(list)) {
+          setAwaitingAi(false);
+        } else if (attempts >= maxAttempts) {
+          setAwaitingAi(false);
+          setError("A IA ainda nÃ£o respondeu. Tente novamente mais tarde ou confira os logs do backend.");
+        }
+      } catch {
+        if (!cancelled && attempts >= maxAttempts) {
+          setAwaitingAi(false);
+          setError("NÃ£o foi possÃ­vel obter a resposta da IA. Confira a conexÃ£o e os logs do backend.");
+        }
+      }
+    };
+    const interval = setInterval(poll, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [alertId, awaitingAi, busy, loading]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [messages, pending]);
 
@@ -119,6 +155,7 @@ export default function Chat() {
     navigate(`/analisar/${created.id}`, { replace: true });
     try {
       await alertsApi.sendMessage(created.id, content);
+      setAwaitingAi(true);
       push({ from: "bot", kind: "registered", score });
     } catch (err) {
       drop(bubbleId);
@@ -136,6 +173,7 @@ export default function Chat() {
     const bubbleId = push({ from: "user", text: content });
     try {
       await alertsApi.sendMessage(alertId, content);
+      setAwaitingAi(true);
     } catch (err) {
       drop(bubbleId);
       setDraft(content);
@@ -147,7 +185,7 @@ export default function Chat() {
 
   function submit(text, channel) {
     const content = text.trim();
-    if (!content || busy || pending || loading) return;
+    if (!content || busy || awaitingAi || pending || loading) return;
     if (alertId) return sendMessage(content);
     if (channel) return startSession(channel, content);
     // Sem canal ainda: mostra o relato e pergunta por onde chegou.
@@ -210,12 +248,13 @@ export default function Chat() {
 
       <div className="chat-foot">
         <p className="chat-note">Nunca informe senha, token ou código neste chat.</p>
+        {awaitingAi && <p className="muted" role="status">A IA estÃ¡ analisando sua mensagem...</p>}
         {error && <p className="error" role="alert">{error}</p>}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); submit(draft); }}>
           <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={10000}
-            aria-label="Descreva o alerta" disabled={Boolean(pending) || loading}
+            aria-label="Descreva o alerta" disabled={Boolean(pending) || loading || awaitingAi}
             placeholder={pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
-          <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || Boolean(pending) || loading}>
+          <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || awaitingAi || Boolean(pending) || loading}>
             <Icon name="send" size={22} />
           </button>
         </form>
