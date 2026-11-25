@@ -24,15 +24,15 @@ public class MessageAiReplyWorker {
 
     private final MessageRepository messageRepository;
     private final AlertRepository alertRepository;
-    private final OpenRouterAiService openRouterAiService;
+    private final GeminiAiService geminiAiService;
 
     public MessageAiReplyWorker(
             MessageRepository messageRepository,
             AlertRepository alertRepository,
-            OpenRouterAiService openRouterAiService) {
+            GeminiAiService geminiAiService) {
         this.messageRepository = messageRepository;
         this.alertRepository = alertRepository;
-        this.openRouterAiService = openRouterAiService;
+        this.geminiAiService = geminiAiService;
     }
 
     @Async
@@ -41,14 +41,14 @@ public class MessageAiReplyWorker {
         Long alertId = event.alertId();
         try {
             List<Message> history = messageRepository.findByAlertIdOrderByCreatedAtAsc(alertId);
-            List<OpenRouterAiService.ChatTurn> conversation = history.stream()
+            List<GeminiAiService.ChatTurn> conversation = history.stream()
                     .skip(Math.max(0, history.size() - MAX_CONTEXT_MESSAGES))
-                    .map(message -> new OpenRouterAiService.ChatTurn(
+                    .map(message -> new GeminiAiService.ChatTurn(
                             message.getSource() == MessageSource.AUTOMATICO ? "assistant" : "user",
                             message.getContent()))
                     .toList();
 
-            String reply = openRouterAiService.analyzeChatText(conversation);
+            String reply = geminiAiService.analyzeChatText(conversation);
             Alert alert = alertRepository.findById(alertId).orElse(null);
             if (alert == null) {
                 logger.warn("Alert {} not found; AI reply was discarded", alertId);
@@ -61,9 +61,9 @@ public class MessageAiReplyWorker {
             aiMessage.setSender(MessageSender.CONTATO);
             aiMessage.setSource(MessageSource.AUTOMATICO);
             messageRepository.save(aiMessage);
-            logger.info("OpenRouter reply saved for alert {}", alertId);
+            logger.info("Gemini reply saved for alert {}", alertId);
         } catch (Exception exception) {
-            logger.error("Could not generate OpenRouter reply for alert {}", alertId, exception);
+            logger.error("Could not generate Gemini reply for alert {}", alertId, exception);
         }
     }
 }

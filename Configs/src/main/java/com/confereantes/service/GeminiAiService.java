@@ -27,10 +27,13 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class GeminiAiService {
 
+    public record ChatTurn(String role, String content) {}
+
     private static final Logger logger = LoggerFactory.getLogger(GeminiAiService.class);
 
     private final String apiKey;
     private final String model;
+    private final String chatModel;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
@@ -38,9 +41,11 @@ public class GeminiAiService {
             @Value("${gemini.api-key:}") String apiKey,
             @Value("${gemini.base-url:https://generativelanguage.googleapis.com/v1beta}") String baseUrl,
             @Value("${gemini.model:gemini-3.8-flash}") String model,
+            @Value("${gemini.chat-model:gemini-2.5-flash}") String chatModel,
             ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.model = model;
+        this.chatModel = chatModel;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(15));
         factory.setReadTimeout(Duration.ofSeconds(60));
@@ -157,8 +162,11 @@ public class GeminiAiService {
      * Analisa uma mensagem de texto do chat e retorna uma resposta amigável
      * com avaliação de risco e orientações de segurança.
      */
-    public String analyzeChatText(String userMessage) {
+    public String analyzeChatText(List<ChatTurn> conversation) {
         requireApiKey();
+        if (conversation == null || conversation.isEmpty()) {
+            throw new IllegalArgumentException("A conversa não pode estar vazia");
+        }
 
         String systemPrompt = """
                 Você é o assistente do aplicativo Confere Antes, que ajuda pessoas a identificar golpes por telefone, SMS, WhatsApp e e-mail.
@@ -167,22 +175,32 @@ public class GeminiAiService {
                 2. Explicar de forma clara e empática POR QUE a situação parece segura ou perigosa.
                 3. Dar orientações práticas e acionáveis sobre o que fazer agora.
                 4. NUNCA pedir dados pessoais, senhas, tokens ou códigos.
-                5. Responder em português do Brasil, de forma direta e acessível (máximo 300 palavras).
+                5. Responder em português do Brasil, de forma direta e acessível (máximo 180 palavras).
                 6. Se o relato contiver sinais clássicos de golpe (urgência, pedido de código/token/senha, instalação de app, transferência financeira), alerte claramente.
-                7. Se não houver sinais de risco, tranquilize mas recomende cautela.
+                7. Se não houver sinais de risco, tranquilize mas recomende cautela. Responda também a saudações e perguntas curtas usando o contexto anterior.
+                8. Considere o histórico como contexto; responda à última mensagem do usuário e não repita a análise inicial sem necessidade.
                 Não use markdown, emojis ou formatação especial. Responda apenas com texto simples.
                 """;
 
+        List<Map<String, Object>> contents = conversation.stream()
+                .filter(turn -> turn != null && turn.content() != null && !turn.content().isBlank())
+                .map(turn -> Map.<String, Object>of(
+                        "role", "assistant".equals(turn.role()) ? "model" : "user",
+                        "parts", List.of(Map.of("text", turn.content()))))
+                .toList();
+        if (contents.isEmpty()) {
+            throw new IllegalArgumentException("A conversa não contém mensagens válidas");
+        }
+
         Map<String, Object> request = Map.of(
-                "contents", List.of(Map.of(
-                        "parts", List.of(Map.of("text", userMessage)))),
+                "contents", contents,
                 "systemInstruction", Map.of(
                         "parts", List.of(Map.of("text", systemPrompt))),
                 "generationConfig", Map.of(
                         "temperature", 0.3,
                         "maxOutputTokens", 800));
 
-        JsonNode response = postGenerateContent(request);
+        JsonNode response = postGenerateContent(chatModel, request);
         String text = extractText(response);
         if (text.isBlank()) {
             return "Não consegui analisar sua mensagem no momento. Tente novamente.";
@@ -195,10 +213,15 @@ public class GeminiAiService {
     }
 
     private JsonNode postGenerateContent(Map<String, Object> request) {
+        return postGenerateContent(model, request);
+    }
+
+    private JsonNode postGenerateContent(String selectedModel, Map<String, Object> request) {
         try {
-            String uri = "/models/" + model + ":generateContent?key=" + apiKey;
+            String uri = "/models/" + selectedModel + ":generateContent";
             JsonNode response = restClient.post()
                     .uri(uri)
+                    .header("x-goog-api-key", apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
