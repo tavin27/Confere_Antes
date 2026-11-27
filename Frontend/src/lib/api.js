@@ -43,7 +43,6 @@ function saveDemoMessage(alertId, content, sender) {
  *   POST /users                    {username, email, phone?, password} -> UserResponse
  *   GET  /users/me                                                    -> {id, username, email, phone, createdAt}
  *   POST /alerts                   {contactChannel, contactValue?}    -> {id, contactChannel, contactValue, overallRiskScore, createdAt}
- *   GET  /alerts/{id}                                                -> {id, contactChannel, contactValue, overallRiskScore, createdAt}
  *   GET  /alerts/{id}/messages                                        -> [{id, content, sender, source, createdAt}]
  *   POST /alerts/{id}/messages     {content, sender: USUARIO|CONTATO} -> MessageResponse
  */
@@ -63,9 +62,6 @@ export const alertsApi = {
       ? Promise.resolve(createDemoAlert(contactChannel, contactValue))
       : request("/alerts", { method: "POST", body: { contactChannel, contactValue: contactValue || undefined } }),
   messages: (alertId) => DEMO_MODE ? Promise.resolve(readDemoMessages(alertId)) : request(`/alerts/${alertId}/messages`),
-  get: (alertId) => DEMO_MODE
-    ? Promise.resolve({ ...readDemoAlerts()[alertId], overallRiskScore: null })
-    : request(`/alerts/${alertId}`),
   sendMessage: (alertId, content, sender = "USUARIO") =>
     DEMO_MODE
       ? Promise.resolve(saveDemoMessage(alertId, content, sender))
