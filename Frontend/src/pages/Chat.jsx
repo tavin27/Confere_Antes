@@ -140,6 +140,8 @@ export default function Chat() {
 
     recognition.onerror = (event) => {
       clearTimeout(silenceTimeout);
+      // aborted: stop() chamado enquanto a instância inicializava — onend dispara logo após e reinicia
+      if (event.error === "aborted") return;
       // no-speech em modo ligação é normal (silêncio entre frases), não encerra
       if (isCallMode && event.error === "no-speech") return;
       listeningRef.current = false;
