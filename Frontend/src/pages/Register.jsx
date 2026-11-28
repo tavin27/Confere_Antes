@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 import Field from "../components/Field.jsx";
-import Icon from "../components/Icon.jsx";
-import { DEMO_MODE } from "../config.js";
+import PasswordGenerator from "../components/PasswordGenerator.jsx";
 import { usersApi } from "../lib/api.js";
 
 export default function Register() {
@@ -14,6 +14,11 @@ export default function Register() {
   const [busy, setBusy] = useState(false);
 
   const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
+  const useGeneratedPassword = (password) => {
+    setForm((current) => ({ ...current, password, confirm: password }));
+    setFieldErrors({});
+    setError("");
+  };
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -47,30 +52,24 @@ export default function Register() {
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <div className="scroll">
         <header className="hero hero--login">
-          <div className="logo"><Icon name="shield" size={34} /></div>
+          <BrandMark />
           <h1 className="hero__title">Criar conta</h1>
           <p>Leva menos de um minuto.</p>
         </header>
         <main className="content content--login" id="main-content" tabIndex="-1">
-          {DEMO_MODE ? (
-            <section className="card stack">
-              <h2>Cadastro indisponível na demonstração</h2>
-              <p className="muted">Volte ao login e escolha “Entrar em modo demonstração”. Nenhuma conta real será criada.</p>
-              <Link to="/login" className="btn">Voltar ao login</Link>
-            </section>
-          ) : (
           <form className="card stack" onSubmit={onSubmit}>
             <Field label="Nome de usuário" value={form.username} onChange={set("username")} autoComplete="name" required error={fieldErrors.username} />
             <Field label="E-mail" type="email" value={form.email} onChange={set("email")} autoComplete="email" required error={fieldErrors.email} />
             <Field label="Celular (opcional)" type="tel" value={form.phone} onChange={set("phone")} autoComplete="tel" error={fieldErrors.phone} />
             <Field label="Senha (8 a 72 caracteres)" type="password" value={form.password} onChange={set("password")}
               autoComplete="new-password" minLength={8} maxLength={72} required error={fieldErrors.password} />
+            <PasswordGenerator onGenerate={useGeneratedPassword} generatedValue={form.password}
+              helpText="A senha só será enviada ao criar sua conta." />
             <Field label="Confirmar senha" type="password" value={form.confirm} onChange={set("confirm")}
-              autoComplete="new-password" required error={fieldErrors.confirm} />
+              autoComplete="new-password" maxLength={72} required error={fieldErrors.confirm} />
             {error && <p className="error" role="alert">{error}</p>}
             <button className="btn" disabled={busy}>{busy ? "Criando…" : "Criar conta"}</button>
           </form>
-          )}
           <p className="muted small center">
             Já tem conta? <Link to="/login" className="link-btn link-btn--inline"><strong>Entrar</strong></Link>
           </p>

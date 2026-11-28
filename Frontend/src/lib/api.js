@@ -1,7 +1,8 @@
-import { request } from "./http.js";
-import { DEMO_MODE } from "../config.js";
+import { DEMO_ENABLED, DEMO_TOKEN } from "../config.js";
+import { request, tokenStore } from "./http.js";
 
 const DEMO_ALERTS_KEY = "ca:demo-alerts";
+const isDemoSession = () => DEMO_ENABLED && tokenStore.get() === DEMO_TOKEN;
 
 function readDemoAlerts() {
   try {
@@ -58,12 +59,15 @@ export const usersApi = {
 
 export const alertsApi = {
   create: (contactChannel, contactValue) =>
-    DEMO_MODE
+    isDemoSession()
       ? Promise.resolve(createDemoAlert(contactChannel, contactValue))
       : request("/alerts", { method: "POST", body: { contactChannel, contactValue: contactValue || undefined } }),
-  messages: (alertId) => DEMO_MODE ? Promise.resolve(readDemoMessages(alertId)) : request(`/alerts/${alertId}/messages`),
+  messages: (alertId) => isDemoSession() ? Promise.resolve(readDemoMessages(alertId)) : request(`/alerts/${alertId}/messages`),
+  get: (alertId) => isDemoSession()
+    ? Promise.resolve({ ...readDemoAlerts()[alertId], overallRiskScore: null })
+    : request(`/alerts/${alertId}`),
   sendMessage: (alertId, content, sender = "USUARIO") =>
-    DEMO_MODE
+    isDemoSession()
       ? Promise.resolve(saveDemoMessage(alertId, content, sender))
       : request(`/alerts/${alertId}/messages`, { method: "POST", body: { content, sender } }),
 };

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { PublicOnly, RequireAuth } from "./auth/Guards.jsx";
 import Chat from "./pages/Chat.jsx";
+import AccountSecurity from "./pages/AccountSecurity.jsx";
 import History from "./pages/History.jsx";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
@@ -8,6 +9,7 @@ import PersonalData from "./pages/PersonalData.jsx";
 import Profile from "./pages/Profile.jsx";
 import Register from "./pages/Register.jsx";
 import Settings from "./pages/Settings.jsx";
+import TrustedContacts from "./pages/TrustedContacts.jsx";
 
 export default function App() {
   return (
@@ -22,6 +24,8 @@ export default function App() {
         <Route path="/historico" element={<History />} />
         <Route path="/perfil" element={<Profile />} />
         <Route path="/perfil/dados" element={<PersonalData />} />
+        <Route path="/perfil/contatos" element={<TrustedContacts />} />
+        <Route path="/perfil/seguranca" element={<AccountSecurity />} />
         <Route path="/ajustes" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

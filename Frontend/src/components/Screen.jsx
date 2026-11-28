@@ -1,15 +1,17 @@
 import { Link } from "react-router-dom";
-import { DEMO_MODE } from "../config.js";
+import { useAuth } from "../auth/AuthContext.jsx";
 import BottomNav from "./BottomNav.jsx";
 import Icon from "./Icon.jsx";
 
 /** Estrutura das telas internas: cabeçalho vermelho, conteúdo sobreposto e menu inferior. */
-export default function Screen({ sub, title, backTo, headerExtra, children }) {
+export default function Screen({ sub, title, backTo, headerExtra, heroClassName = "", children }) {
+  const { isDemo } = useAuth();
+
   return (
     <div className="app">
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <div className="scroll">
-        <header className="hero">
+        <header className={`hero ${heroClassName}`}>
           <div className="hero__row">
             {backTo && <Link to={backTo} className="back" aria-label="Voltar"><Icon name="back" /></Link>}
             <div>
@@ -20,7 +22,7 @@ export default function Screen({ sub, title, backTo, headerExtra, children }) {
           {headerExtra}
         </header>
         <main className="content" id="main-content" tabIndex="-1">
-          {DEMO_MODE && <p className="notice small" role="status">Demonstração local: dados fictícios; nada é enviado ao backend.</p>}
+          {isDemo && <p className="notice small" role="status">Demonstração: dados fictícios e análises simuladas; nada é enviado ao backend.</p>}
           {children}
         </main>
       </div>
