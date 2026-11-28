@@ -59,63 +59,99 @@ export default function Chat() {
   const [pending, setPending] = useState(null); // { text, bubbleId } aguardando a escolha do canal
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef(null);
-  const voiceInitializedRef = useRef(false);
   const createdHere = useRef(null);
   const endRef = useRef(null);
 
-  // Inicializa Web Speech API para entrada por voz (ideal para situações de pânico)
+  // Mantém referência ao draft atual para uso dentro de callbacks (evita closure stale)
+  const draftRef = useRef("");
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+  const listeningRef = useRef(false);
+
+  // Verifica suporte na montagem
   useEffect(() => {
-    if (voiceInitializedRef.current) return undefined;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
       setVoiceSupported(false);
-      return undefined;
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    let finalTranscript = "";
-    recognition.onresult = (event) => {
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalTranscript += (finalTranscript ? " " : "") + event.results[i][0].transcript;
-        }
-      }
-    };
-    recognition.onerror = () => {
-      if (finalTranscript) {
-        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalTranscript}` : finalTranscript);
-      }
-      finalTranscript = "";
-      setListening(false);
-    };
-    recognition.onend = () => {
-      if (finalTranscript) {
-        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalTranscript}` : finalTranscript);
-      }
-      finalTranscript = "";
-      setListening(false);
-    };
-    recognitionRef.current = recognition;
-    voiceInitializedRef.current = true;
-    return () => { recognition.abort(); };
   }, []);
 
+  function createAndStartRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    // Sempre criar nova instância: SpeechRecognition não pode ser .start()ada após onend disparar
+    const recognition = new SpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.continuous = false;
+    recognition.interimResults = true; // Habilita feedback em tempo real
+    recognition.maxAlternatives = 1;
+
+    let silenceTimeout;
+    const resetSilenceTimeout = () => {
+      clearTimeout(silenceTimeout);
+      silenceTimeout = setTimeout(() => {
+        if (listeningRef.current) recognition.stop();
+      }, 3000);
+    };
+
+    recognition.onstart = () => {
+      listeningRef.current = true;
+      setListening(true);
+      resetSilenceTimeout();
+    };
+
+    recognition.onresult = (event) => {
+      resetSilenceTimeout();
+      let finalText = "";
+      let interimText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalText += event.results[i][0].transcript;
+        } else {
+          interimText += event.results[i][0].transcript;
+        }
+      }
+      if (finalText) {
+        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalText}` : finalText);
+        setInterimText("");
+      } else if (interimText) {
+        setInterimText(interimText);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      clearTimeout(silenceTimeout);
+      listeningRef.current = false;
+      setListening(false);
+      setInterimText("");
+      if (event.error !== "no-speech" && event.error !== "network") {
+        setError(`Erro na captura de voz: ${event.error}`);
+      }
+    };
+
+    recognition.onend = () => {
+      clearTimeout(silenceTimeout);
+      listeningRef.current = false;
+      setListening(false);
+      setInterimText("");
+      // Auto-submit: envia o texto capturado sem precisar pressionar Enter
+      const captured = draftRef.current.trim();
+      if (captured) {
+        submitRef.current(captured);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
   function toggleVoice() {
-    if (!recognitionRef.current) return;
     if (listening) {
-      recognitionRef.current.stop();
+      recognitionRef.current?.stop();
     } else {
       setError("");
-      try {
-        recognitionRef.current.start();
-        setListening(true);
-      } catch {
-        setListening(false);
-      }
+      createAndStartRecognition();
     }
   }
 
@@ -282,6 +318,10 @@ export default function Chat() {
   }
 
   const chooseChannel = (channel) => startSession(channel, pending.text, pending.bubbleId);
+
+  // Ref para submit: evita closure stale no onend da SpeechRecognition
+  const submitRef = useRef(null);
+  submitRef.current = submit;
   const showSuggestions = !alertId && !pending && !loading && messages.length <= 1;
 
   return (
@@ -361,8 +401,9 @@ export default function Chat() {
               {listening && <span className="mic__pulse" aria-hidden="true" />}
             </button>
           )}
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={10000}
+          <input value={interimText || draft} onChange={(e) => { setDraft(e.target.value); setInterimText(""); }} maxLength={10000}
             aria-label="Descreva o alerta" disabled={Boolean(pending) || loading || awaitingAi}
+            className={interimText ? "input--interim" : undefined}
             placeholder={listening ? "Ouvindo… fale agora" : pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
           <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || awaitingAi || Boolean(pending) || loading}>
             <Icon name="send" size={22} />
