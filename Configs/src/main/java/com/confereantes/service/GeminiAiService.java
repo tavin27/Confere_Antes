@@ -1,3 +1,4 @@
+
 package com.confereantes.service;
 
 import java.math.BigDecimal;
@@ -6,12 +7,11 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import java.time.Duration;
-
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -68,7 +68,25 @@ public class GeminiAiService {
                 "contents", List.of(Map.of(
                         "parts", List.of(
                                 Map.of("inlineData", inlineData),
-                                Map.of("text", "Transcreva este áudio em português do Brasil. Retorne APENAS o texto transcrito, sem explicações, sem markdown, sem formatação adicional. Se o áudio não contiver fala inteligível, retorne a palavra VAZIO.")))),
+                                Map.of("text", """
+                                        Transcreva este audio em portugues do Brasil, identificando separadamente os participantes da conversa.
+
+                                        REGRAS OBRIGATORIAS:
+                                        1. Identifique cada voz com um identificador consistente: PESSOA_1, PESSOA_2, PESSOA_3 etc.
+                                        2. Coloque cada fala em uma linha, no formato:
+                                           PESSOA_1: texto falado
+                                           PESSOA_2: texto falado
+                                        3. Preserve a ordem cronologica da conversa.
+                                        4. Nao misture falas de participantes diferentes.
+                                        5. Nao invente palavras ou informacoes que nao estejam audiveis.
+                                        6. Quando nao conseguir identificar com seguranca o participante de uma fala, utilize PARTICIPANTE_INCERTO.
+                                        7. Quando um trecho estiver inaudivel, indique [TRECHO_INAUDIVEL].
+                                        8. Nao classifique participantes como golpista ou vitima.
+                                        9. Nao acrescente explicacoes, comentarios ou analises.
+
+                                        Retorne APENAS a transcricao identificada.
+                                        Se o audio nao contiver fala inteligivel, retorne VAZIO.
+                                        """)))),
                 "generationConfig", Map.of(
                         "temperature", 0.0,
                         "maxOutputTokens", 4096,
@@ -77,7 +95,7 @@ public class GeminiAiService {
         JsonNode response = postGenerateContent(request);
         String text = extractText(response);
         if (text.isBlank()) {
-            throw new IllegalStateException("O Gemini retornou transcrição vazia");
+            throw new IllegalStateException("O Gemini retornou transcricao vazia");
         }
         return text;
     }
@@ -86,18 +104,18 @@ public class GeminiAiService {
         requireApiKey();
 
         String systemPrompt = """
-                Você é um classificador de risco de golpes por telefone. Analise somente a transcrição fornecida.
-                Não invente fatos. Uma suspeita não é prova. Seja conservador e explique sinais usando trechos literais.
-                Retorne exclusivamente um objeto JSON válido, sem markdown, com:
+                Voce e um classificador de risco de golpes por telefone. Analise somente a transcricao fornecida.
+                Nao invente fatos. Uma suspeita nao e prova. Seja conservador e explique sinais usando trechos literais.
+                Retorne exclusivamente um objeto JSON valido, sem markdown, com:
                 riskScore (inteiro 0-100), riskLevel (LOW|MEDIUM|HIGH|CRITICAL), isScam (boolean),
-                confidence (número 0-1), recommendation (BLOCK_AND_REPORT|BLOCK_NUMBER|REPORT_SCAM|IGNORE|MARK_AS_SAFE),
+                confidence (numero 0-1), recommendation (BLOCK_AND_REPORT|BLOCK_NUMBER|REPORT_SCAM|IGNORE|MARK_AS_SAFE),
                 signals (lista de objetos com signalType, description, evidenceText).
-                Não recomende bloqueio automático; a recomendação é apenas apoio para decisão humana.
+                Nao recomende bloqueio automatico; a recomendacao e apenas apoio para decisao humana.
                 """;
 
         Map<String, Object> request = Map.of(
                 "contents", List.of(Map.of(
-                        "parts", List.of(Map.of("text", "Transcrição em português:\n\n" + transcript)))),
+                        "parts", List.of(Map.of("text", "Transcricao em portugues:\n\n" + transcript)))),
                 "systemInstruction", Map.of(
                         "parts", List.of(Map.of("text", systemPrompt))),
                 "generationConfig", Map.of(
@@ -108,7 +126,7 @@ public class GeminiAiService {
         JsonNode response = postGenerateContent(request);
         String content = extractText(response);
         if (content.isBlank()) {
-            throw new IllegalStateException("O Gemini retornou resposta de análise vazia");
+            throw new IllegalStateException("O Gemini retornou resposta de analise vazia");
         }
 
         try {
@@ -127,7 +145,7 @@ public class GeminiAiService {
             }
             var confidenceNode = result.path("confidence");
             if (!confidenceNode.isNumber()) {
-                throw new IllegalArgumentException("confidence precisa ser numérico");
+                throw new IllegalArgumentException("confidence precisa ser numerico");
             }
             var confidence = confidenceNode.decimalValue();
             if (confidence.signum() < 0 || confidence.compareTo(BigDecimal.ONE) > 0) {
@@ -155,37 +173,37 @@ public class GeminiAiService {
                     List.copyOf(signals),
                     objectMapper.writeValueAsString(result));
         } catch (RuntimeException exception) {
-            throw new IllegalStateException("A resposta de análise do Gemini está inválida", exception);
+            throw new IllegalStateException("A resposta de analise do Gemini esta invalida", exception);
         }
     }
 
     /**
-     * Analisa uma mensagem de texto do chat e retorna uma resposta amigável
-     * com avaliação de risco e orientações de segurança, incluindo o score estimado.
+     * Analisa uma mensagem de texto do chat e retorna uma resposta amigavel
+     * com avaliacao de risco e orientacoes de seguranca, incluindo o score estimado.
      */
     public ChatAnalysisResult analyzeChatText(List<ChatTurn> conversation) {
         requireApiKey();
         if (conversation == null || conversation.isEmpty()) {
-            throw new IllegalArgumentException("A conversa não pode estar vazia");
+            throw new IllegalArgumentException("A conversa nao pode estar vazia");
         }
 
         String systemPrompt = """
-                Você é o assistente do aplicativo Confere Antes, que ajuda pessoas a identificar golpes por telefone, SMS, WhatsApp e e-mail.
-                O usuário está descrevendo uma situação suspeita. Sua tarefa é:
-                1. Avaliar o nível de risco (baixo, médio, alto ou crítico) com base nos sinais presentes.
-                2. Explicar de forma clara e empática POR QUE a situação parece segura ou perigosa.
-                3. Dar orientações práticas e acionáveis sobre o que fazer agora.
-                4. NUNCA pedir dados pessoais, senhas, tokens ou códigos.
-                5. Responder em português do Brasil, de forma direta e acessível (máximo 180 palavras).
-                6. Se o relato contiver sinais clássicos de golpe (urgência, pedido de código/token/senha, instalação de app, transferência financeira), alerte claramente.
-                7. Se não houver sinais de risco, tranquilize mas recomende cautela. Responda também a saudações e perguntas curtas usando o contexto anterior.
-                8. Considere o histórico como contexto; responda à última mensagem do usuário e não repita a análise inicial sem necessidade.
+                Voce e o assistente do aplicativo Confere Antes, que ajuda pessoas a identificar golpes por telefone, SMS, WhatsApp e e-mail.
+                O usuario esta descrevendo uma situacao suspeita. Sua tarefa e:
+                1. Avaliar o nivel de risco (baixo, medio, alto ou critico) com base nos sinais presentes.
+                2. Explicar de forma clara e empatica POR QUE a situacao parece segura ou perigosa.
+                3. Dar orientacoes praticas e acionaveis sobre o que fazer agora.
+                4. NUNCA pedir dados pessoais, senhas, tokens ou codigos.
+                5. Responder em portugues do Brasil, de forma direta e acessivel (maximo 180 palavras).
+                6. Se o relato contiver sinais classicos de golpe (urgencia, pedido de codigo/token/senha, instalacao de app, transferencia financeira), alerte claramente.
+                7. Se nao houver sinais de risco, tranquilize mas recomende cautela. Responda tambem a saudacoes e perguntas curtas usando o contexto anterior.
+                8. Considere o historico como contexto; responda a ultima mensagem do usuario e nao repita a analise inicial sem necessidade.
 
-                IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um objeto JSON válido (sem markdown, sem fences), contendo:
-                - "reply": string com a resposta em texto simples para o usuário
-                - "riskScore": inteiro de 0 a 100 representando o nível de risco estimado (0=seguro, 100=golpe certo)
+                IMPORTANTE: Voce DEVE responder EXCLUSIVAMENTE com um objeto JSON valido (sem markdown, sem fences), contendo:
+                - "reply": string com a resposta em texto simples para o usuario
+                - "riskScore": inteiro de 0 a 100 representando o nivel de risco estimado (0=seguro, 100=golpe certo)
 
-                Exemplo de resposta válida: {"reply":"Sua mensagem aqui","riskScore":75}
+                Exemplo de resposta valida: {"reply":"Sua mensagem aqui","riskScore":75}
                 """;
 
         List<Map<String, Object>> contents = conversation.stream()
@@ -195,7 +213,7 @@ public class GeminiAiService {
                         "parts", List.of(Map.of("text", turn.content()))))
                 .toList();
         if (contents.isEmpty()) {
-            throw new IllegalArgumentException("A conversa não contém mensagens válidas");
+            throw new IllegalArgumentException("A conversa nao contem mensagens validas");
         }
 
         Map<String, Object> request = Map.of(
@@ -210,7 +228,7 @@ public class GeminiAiService {
         JsonNode response = postGenerateContent(chatModel, request);
         String text = extractText(response);
         if (text.isBlank()) {
-            return new ChatAnalysisResult("Não consegui analisar sua mensagem no momento. Tente novamente.", null);
+            return new ChatAnalysisResult("Nao consegui analisar sua mensagem no momento. Tente novamente.", null);
         }
 
         try {
@@ -284,14 +302,14 @@ public class GeminiAiService {
 
     private void requireApiKey() {
         if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalStateException("A variável GEMINI_API_KEY não está configurada");
+            throw new IllegalStateException("A variavel GEMINI_API_KEY nao esta configurada");
         }
     }
 
     private String requiredText(JsonNode node, String field) {
         String value = node.path(field).asString("").trim();
         if (value.isBlank()) {
-            throw new IllegalArgumentException("Campo obrigatório ausente: " + field);
+            throw new IllegalArgumentException("Campo obrigatorio ausente: " + field);
         }
         return value;
     }
