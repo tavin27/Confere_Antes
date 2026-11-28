@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
@@ -15,11 +16,13 @@ const GREETING = {
   from: "bot",
   text: "Oi! Conte o que aconteceu: quem entrou em contato, por qual canal e o que pediram. Não precisa de dados pessoais.",
 };
+
 const SUGGESTIONS = [
   { text: "Ligaram dizendo que sou do banco e pediram para instalar um aplicativo", channel: "LIGACAO" },
   { text: "Recebi um link no WhatsApp sobre uma compra que não fiz", channel: "WHATSAPP" },
   { text: "Pediram o código que chegou por SMS", channel: "SMS" },
 ];
+
 const SAFETY_TIP =
   "Enquanto isso: não instale aplicativos, não informe senhas, tokens ou códigos e confirme pelo número oficial do banco, que está no seu cartão.";
 
@@ -138,15 +141,27 @@ export default function Chat() {
       }
     };
 
+    // Diagnóstico temporário dos erros de reconhecimento
     recognition.onerror = (event) => {
       clearTimeout(silenceTimeout);
-      // aborted: stop() chamado enquanto a instância inicializava — onend dispara logo após e reinicia
+
+      console.warn("[Confere Antes] Erro no reconhecimento:", {
+        error: event.error,
+        isCallMode,
+        callModeActive: callModeRef.current,
+      });
+
       if (event.error === "aborted") return;
-      // no-speech em modo ligação é normal (silêncio entre frases), não encerra
-      if (isCallMode && event.error === "no-speech") return;
+
+      if (isCallMode && event.error === "no-speech") {
+        setError("Diagnóstico: navegador não detectou voz durante a ligação.");
+        return;
+      }
+
       listeningRef.current = false;
       setListening(false);
       setInterimText("");
+
       if (event.error !== "no-speech" && event.error !== "network") {
         setError(`Erro na captura de voz: ${event.error}`);
       }
@@ -332,12 +347,12 @@ export default function Chat() {
           if (!cancelled) setAwaitingAi(false);
         } else if (attempts >= maxAttempts) {
           setAwaitingAi(false);
-          setError("A IA ainda nÃ£o respondeu. Tente novamente mais tarde ou confira os logs do backend.");
+          setError("A IA ainda não respondeu. Tente novamente mais tarde ou confira os logs do backend.");
         }
       } catch {
         if (!cancelled && attempts >= maxAttempts) {
           setAwaitingAi(false);
-          setError("NÃ£o foi possÃ­vel obter a resposta da IA. Confira a conexÃ£o e os logs do backend.");
+          setError("Não foi possível obter a resposta da IA. Confira a conexão e os logs do backend.");
         }
       }
     };
