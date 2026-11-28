@@ -1,3 +1,4 @@
+
 package com.confereantes.service;
 
 import java.util.List;
@@ -19,20 +20,25 @@ import com.confereantes.model.enums.CallProcessingStatus;
 import com.confereantes.repository.AlertRepository;
 import com.confereantes.repository.CallRecordingRepository;
 import com.confereantes.repository.CallTranscriptionRepository;
+import com.confereantes.repository.LocalRiskAnalysisRepository;
 import com.confereantes.repository.RiskAnalysisRepository;
 import com.confereantes.repository.RiskSignalRepository;
 import com.confereantes.repository.UserDecisionRecordRepository;
 import com.confereantes.repository.UserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class CallAnalysisService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final AlertRepository alertRepository;
     private final UserRepository userRepository;
     private final CallRecordingRepository callRecordingRepository;
     private final CallTranscriptionRepository callTranscriptionRepository;
+    private final LocalRiskAnalysisRepository localRiskAnalysisRepository;
     private final RiskAnalysisRepository riskAnalysisRepository;
     private final RiskSignalRepository riskSignalRepository;
     private final UserDecisionRecordRepository userDecisionRecordRepository;
@@ -43,14 +49,17 @@ public class CallAnalysisService {
             UserRepository userRepository,
             CallRecordingRepository callRecordingRepository,
             CallTranscriptionRepository callTranscriptionRepository,
+            LocalRiskAnalysisRepository localRiskAnalysisRepository,
             RiskAnalysisRepository riskAnalysisRepository,
             RiskSignalRepository riskSignalRepository,
             UserDecisionRecordRepository userDecisionRecordRepository,
             ApplicationEventPublisher eventPublisher) {
+
         this.alertRepository = alertRepository;
         this.userRepository = userRepository;
         this.callRecordingRepository = callRecordingRepository;
         this.callTranscriptionRepository = callTranscriptionRepository;
+        this.localRiskAnalysisRepository = localRiskAnalysisRepository;
         this.riskAnalysisRepository = riskAnalysisRepository;
         this.riskSignalRepository = riskSignalRepository;
         this.userDecisionRecordRepository = userDecisionRecordRepository;
@@ -60,6 +69,7 @@ public class CallAnalysisService {
     @Transactional
     public CallResponse createCall(Long alertId, String userEmail, CallRequest request) {
         User user = findUser(userEmail);
+
         Alert alert = alertRepository.findByIdAndUserId(alertId, user.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Alerta não encontrado"));
 
@@ -71,29 +81,43 @@ public class CallAnalysisService {
 
         CallRecording savedCall = callRecordingRepository.save(call);
         eventPublisher.publishEvent(new CallSubmittedEvent(savedCall.getId()));
+
         return toResponse(savedCall);
     }
 
     @Transactional(readOnly = true)
     public CallResponse getCall(Long callId, String userEmail) {
         User user = findUser(userEmail);
-        CallRecording call = callRecordingRepository.findByIdAndAlert_User_Id(callId, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Ligação não encontrada"));
+
+        CallRecording call = callRecordingRepository.findByIdAndAlert_User_Id(
+                callId,
+                user.getId()
+        ).orElseThrow(() -> new EntityNotFoundException("Ligação não encontrada"));
 
         return toResponse(call);
     }
 
     @Transactional
-    public CallResponse registerDecision(Long callId, String userEmail, UserDecisionRequest request) {
-        User user = findUser(userEmail);
-        CallRecording call = callRecordingRepository.findByIdAndAlert_User_Id(callId, user.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Ligação não encontrada"));
+    public CallResponse registerDecision(
+            Long callId,
+            String userEmail,
+            UserDecisionRequest request) {
 
-        UserDecisionRecord decision = userDecisionRecordRepository.findByCallRecordingId(callId)
+        User user = findUser(userEmail);
+
+        CallRecording call = callRecordingRepository.findByIdAndAlert_User_Id(
+                callId,
+                user.getId()
+        ).orElseThrow(() -> new EntityNotFoundException("Ligação não encontrada"));
+
+        UserDecisionRecord decision = userDecisionRecordRepository
+                .findByCallRecordingId(callId)
                 .orElseGet(UserDecisionRecord::new);
+
         decision.setCallRecording(call);
         decision.setUser(user);
         decision.setDecision(request.getDecision());
+
         userDecisionRecordRepository.save(decision);
 
         call.setStatus(CallProcessingStatus.COMPLETED);
@@ -108,14 +132,40 @@ public class CallAnalysisService {
     }
 
     private CallResponse toResponse(CallRecording call) {
-        var transcription = callTranscriptionRepository.findByCallRecordingId(call.getId());
-        var analysis = riskAnalysisRepository.findByCallRecordingId(call.getId());
-        var decision = userDecisionRecordRepository.findByCallRecordingId(call.getId());
+        var transcription = callTranscriptionRepository
+                .findByCallRecordingId(call.getId());
+
+        var localAnalysis = localRiskAnalysisRepository
+                .findByCallRecordingId(call.getId());
+
+        var analysis = riskAnalysisRepository
+                .findByCallRecordingId(call.getId());
+
+        var decision = userDecisionRecordRepository
+                .findByCallRecordingId(call.getId());
 
         List<RiskSignalResponse> signals = analysis
-                .map(item -> riskSignalRepository.findByRiskAnalysisId(item.getId()).stream()
+                .map(item -> riskSignalRepository
+                        .findByRiskAnalysisId(item.getId())
+                        .stream()
                         .map(this::toSignalResponse)
                         .toList())
+                .orElse(List.of());
+
+        Integer localRiskScore = localAnalysis
+                .map(item -> item.getRiskScore())
+                .orElse(null);
+
+        Boolean localAlertTriggered = localAnalysis
+                .map(item -> item.isAlertTriggered())
+                .orElse(null);
+
+        List<String> localDetectedRules = localAnalysis
+                .map(item -> parseJsonList(item.getDetectedRules()))
+                .orElse(List.of());
+
+        List<String> localReasons = localAnalysis
+                .map(item -> parseJsonList(item.getReasons()))
                 .orElse(List.of());
 
         return new CallResponse(
@@ -127,20 +177,52 @@ public class CallAnalysisService {
                 call.getCreatedAt(),
                 call.getUpdatedAt(),
                 transcription.map(item -> item.getTranscriptionText()).orElse(null),
+
+                // Resultado da IA
                 analysis.map(item -> item.getRiskScore()).orElse(null),
                 analysis.map(item -> item.getRiskLevel()).orElse(null),
                 analysis.map(item -> item.isScam()).orElse(false),
                 analysis.map(item -> item.getConfidence()).orElse(null),
                 analysis.map(item -> item.getRecommendation()).orElse(null),
                 signals,
+
+                // Resultado das regras locais
+                localRiskScore,
+                localAlertTriggered,
+                localDetectedRules,
+                localReasons,
+
                 decision.map(item -> item.getDecision()).orElse(null),
-                call.getFailureReason());
+                call.getFailureReason()
+        );
+    }
+
+    private List<String> parseJsonList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            List<?> values = OBJECT_MAPPER.readValue(json, List.class);
+
+            return values.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .toList();
+
+        } catch (Exception exception) {
+            throw new IllegalStateException(
+                    "Não foi possível converter os dados da análise local.",
+                    exception
+            );
+        }
     }
 
     private RiskSignalResponse toSignalResponse(RiskSignal signal) {
         return new RiskSignalResponse(
                 signal.getSignalType(),
                 signal.getDescription(),
-                signal.getEvidenceText());
+                signal.getEvidenceText()
+        );
     }
 }

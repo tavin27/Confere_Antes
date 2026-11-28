@@ -1,3 +1,4 @@
+
 package com.confereantes.dto;
 
 import java.math.BigDecimal;
@@ -19,12 +20,21 @@ public class CallResponse {
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
     private final String transcriptionText;
+
+    // Análise da IA
     private final Integer riskScore;
     private final RiskLevel riskLevel;
     private final boolean scam;
     private final BigDecimal confidence;
     private final RiskRecommendation recommendation;
     private final List<RiskSignalResponse> signals;
+
+    // Análise local
+    private final Integer localRiskScore;
+    private final Boolean localAlertTriggered;
+    private final List<String> localDetectedRules;
+    private final List<String> localReasons;
+
     private final UserDecision decision;
     private final String failureReason;
 
@@ -43,8 +53,13 @@ public class CallResponse {
             BigDecimal confidence,
             RiskRecommendation recommendation,
             List<RiskSignalResponse> signals,
+            Integer localRiskScore,
+            Boolean localAlertTriggered,
+            List<String> localDetectedRules,
+            List<String> localReasons,
             UserDecision decision,
             String failureReason) {
+
         this.id = id;
         this.alertId = alertId;
         this.audioUrl = audioUrl;
@@ -59,6 +74,10 @@ public class CallResponse {
         this.confidence = confidence;
         this.recommendation = recommendation;
         this.signals = signals;
+        this.localRiskScore = localRiskScore;
+        this.localAlertTriggered = localAlertTriggered;
+        this.localDetectedRules = localDetectedRules;
+        this.localReasons = localReasons;
         this.decision = decision;
         this.failureReason = failureReason;
     }
@@ -71,12 +90,21 @@ public class CallResponse {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public String getTranscriptionText() { return transcriptionText; }
+
+    // Análise da IA
     public Integer getRiskScore() { return riskScore; }
     public RiskLevel getRiskLevel() { return riskLevel; }
     public boolean isScam() { return scam; }
     public BigDecimal getConfidence() { return confidence; }
     public RiskRecommendation getRecommendation() { return recommendation; }
     public List<RiskSignalResponse> getSignals() { return signals; }
+
+    // Análise local
+    public Integer getLocalRiskScore() { return localRiskScore; }
+    public Boolean getLocalAlertTriggered() { return localAlertTriggered; }
+    public List<String> getLocalDetectedRules() { return localDetectedRules; }
+    public List<String> getLocalReasons() { return localReasons; }
+
     public UserDecision getDecision() { return decision; }
     public String getFailureReason() { return failureReason; }
 
