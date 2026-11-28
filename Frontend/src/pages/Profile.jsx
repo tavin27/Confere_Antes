@@ -4,10 +4,10 @@ import Icon from "../components/Icon.jsx";
 import Screen from "../components/Screen.jsx";
 
 const ITEMS = [
-  { title: "Dados pessoais", sub: "Nome, e-mail e celular", to: "/perfil/dados" },
-  { title: "Contatos de confiança", sub: "Pessoas avisadas em caso de alerta" },
-  { title: "Denúncias registradas", sub: "Canal, discurso e resultado", to: "/historico" },
-  { title: "Segurança da conta", sub: "Senha e verificação" },
+  { title: "Dados pessoais", sub: "Nome, e-mail e celular", icon: "user", to: "/perfil/dados" },
+  { title: "Contatos de confiança", sub: "Nomes e telefones salvos neste aparelho", icon: "users", to: "/perfil/contatos" },
+  { title: "Denúncias registradas", sub: "Canal, discurso e resultado", icon: "activity", to: "/historico" },
+  { title: "Segurança da conta", sub: "Gere uma senha forte", icon: "shield", to: "/perfil/seguranca" },
 ];
 
 export default function Profile() {
@@ -18,15 +18,17 @@ export default function Profile() {
       headerExtra={<div className="avatar avatar--big" aria-hidden="true">{user.username.charAt(0).toUpperCase()}</div>}>
       <section className="card">
         <ul className="list" style={{ marginTop: 0 }}>
-          {ITEMS.map(({ title, sub, to }) => (
+          {ITEMS.map(({ title, sub, icon, to }) => (
             <li key={title}>
               {to ? (
                 <Link to={to} className="item">
+                  <span className="card-heading__icon profile-item__icon"><Icon name={icon} size={20} /></span>
                   <span className="grow"><strong>{title}</strong><small>{sub}</small></span>
                   <Icon name="chev" size={20} />
                 </Link>
               ) : (
                 <div className="item item--disabled" aria-disabled="true">
+                  <span className="card-heading__icon profile-item__icon"><Icon name={icon} size={20} /></span>
                   <span className="grow"><strong>{title}</strong><small>{sub}</small></span>
                   <span className="badge">Em breve</span>
                 </div>

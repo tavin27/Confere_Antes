@@ -1,4 +1,5 @@
 import { useAccessibility } from "../accessibility/AccessibilityContext.jsx";
+import Icon from "../components/Icon.jsx";
 import Screen from "../components/Screen.jsx";
 
 function Switch({ label, checked, onChange, disabled }) {
@@ -12,20 +13,22 @@ export default function Settings() {
   const { prefs, update } = useAccessibility();
 
   return (
-    <Screen sub="Preferências" title="Configurações">
-      <section className="card">
-        <h2>Proteção e alertas</h2>
+    <Screen
+      sub="Personalize sua experiência"
+      title="Configurações"
+      headerExtra={<span className="settings-hero-icon"><Icon name="gear" size={54} /></span>}
+      heroClassName="hero--settings"
+    >
+      <section className="card settings-card">
+        <div className="card-heading settings-card__heading">
+          <span className="card-heading__icon"><Icon name="shield" size={21} /></span>
+          <h2>Proteção e alertas</h2>
+        </div>
         <ul className="list">
           <li>
             <div className="item">
               <span className="grow"><strong>Alertas de contato suspeito</strong><small>Aviso imediato por notificação</small></span>
               <Switch label="Alertas de contato suspeito" checked={prefs.alerts} onChange={update("alerts")} />
-            </div>
-          </li>
-          <li>
-            <div className="item item--disabled">
-              <span className="grow"><strong>Confirmação em duas etapas no login</strong><small>Código de verificação ao entrar · Em breve</small></span>
-              <Switch label="Confirmação em duas etapas no login (em breve)" checked={false} onChange={() => {}} disabled />
             </div>
           </li>
           <li>
@@ -37,19 +40,12 @@ export default function Settings() {
         </ul>
         <p className="muted small" style={{ marginTop: 8 }}>Preferências salvas neste dispositivo.</p>
       </section>
-      <section className="card">
-        <h2>Acessibilidade</h2>
+      <section className="card settings-card">
+        <div className="card-heading settings-card__heading">
+          <span className="card-heading__icon"><Icon name="gear" size={21} /></span>
+          <h2>Acessibilidade</h2>
+        </div>
         <ul className="list">
-          <li>
-            <label className="accessibility-select" htmlFor="font-size">
-              <span className="grow"><strong>Tamanho do texto</strong><small>Ajuste a leitura em todas as telas</small></span>
-              <select id="font-size" value={prefs.fontSize} onChange={(event) => update("fontSize")(event.target.value)}>
-                <option value="normal">Padrão</option>
-                <option value="large">Grande</option>
-                <option value="x-large">Muito grande</option>
-              </select>
-            </label>
-          </li>
           <li>
             <div className="item">
               <span className="grow"><strong>Alto contraste</strong><small>Aumenta o contraste de textos e controles</small></span>
@@ -71,11 +67,13 @@ export default function Settings() {
         </ul>
         <p className="muted small" style={{ marginTop: 8 }}>Preferências de acessibilidade salvas neste dispositivo.</p>
       </section>
-      <section className="card">
+      <section className="card settings-card">
+        <div className="card-heading settings-card__heading">
+          <span className="card-heading__icon"><Icon name="user" size={21} /></span>
+          <h2>Preferências gerais</h2>
+        </div>
         <ul className="list" style={{ marginTop: 0 }}>
           <li><div className="item"><span className="grow"><strong>Idioma</strong><small>Português (Brasil)</small></span></div></li>
-          <li><div className="item item--disabled" aria-disabled="true"><span className="grow"><strong>Privacidade e dados</strong></span><span className="badge">Em breve</span></div></li>
-          <li><div className="item item--disabled" aria-disabled="true"><span className="grow"><strong>Ajuda e suporte</strong></span><span className="badge">Em breve</span></div></li>
         </ul>
       </section>
     </Screen>

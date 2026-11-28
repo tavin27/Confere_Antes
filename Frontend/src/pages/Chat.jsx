@@ -3,9 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import BottomNav from "../components/BottomNav.jsx";
 import Icon from "../components/Icon.jsx";
-import { DEMO_MODE } from "../config.js";
 import { RiskChip, RiskMeter } from "../components/Risk.jsx";
 import { alertsApi } from "../lib/api.js";
+import { hasEmergencyKeywords } from "../lib/emergency.js";
 import { truncate } from "../lib/format.js";
 import { CHANNELS } from "../lib/risk.js";
 import { sessionsStore } from "../lib/storage.js";
@@ -47,7 +47,7 @@ function needsAiReply(list) {
 export default function Chat() {
   const { alertId: param } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
 
   const [alertId, setAlertId] = useState(param ? Number(param) : null);
   const [messages, setMessages] = useState(param ? [] : [GREETING]);
@@ -61,7 +61,9 @@ export default function Chat() {
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [interimText, setInterimText] = useState("");
   const [callMode, setCallMode] = useState(false);
+  const [showEmergencyPrompt, setShowEmergencyPrompt] = useState(false);
   const recognitionRef = useRef(null);
+  const emergencyDialogRef = useRef(null);
   const createdHere = useRef(null);
   const endRef = useRef(null);
 
@@ -350,6 +352,13 @@ export default function Chat() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [messages, pending]);
 
+  useEffect(() => {
+    const dialog = emergencyDialogRef.current;
+    if (!dialog) return;
+    if (showEmergencyPrompt && !dialog.open) dialog.showModal();
+    else if (!showEmergencyPrompt && dialog.open) dialog.close();
+  }, [showEmergencyPrompt]);
+
   const push = (message) => {
     const id = localId();
     setMessages((list) => [...list, { id, ...message }]);
@@ -412,6 +421,7 @@ export default function Chat() {
   function submit(text, channel) {
     const content = text.trim();
     if (!content || busy || awaitingAi || pending || loading) return;
+    if (hasEmergencyKeywords(content)) setShowEmergencyPrompt(true);
     if (alertId) return sendMessage(content);
     if (channel) return startSession(channel, content);
     // Sem canal ainda: mostra o relato e pergunta por onde chegou.
@@ -439,7 +449,7 @@ export default function Chat() {
       </header>
 
       <div className="chat-body" id="main-content" tabIndex="-1" role="log" aria-live="polite" aria-label="Conversa">
-        {DEMO_MODE && <p className="notice small" role="status">Demonstração local: a conversa e a análise são simuladas.</p>}
+        {isDemo && <p className="notice small" role="status">Demonstração: a conversa e a análise são simuladas.</p>}
         {loading && <p className="muted" role="status">Carregando conversa…</p>}
         {messages.map((m) => (
           <div key={m.id} className={`bubble bubble--${m.from}`}>
@@ -534,6 +544,29 @@ export default function Chat() {
         </form>
         {listening && !callMode && <p className="muted" role="status">🎙️ Ouvindo… fale claramente. Toque no microfone para parar.</p>}
       </div>
+      <dialog
+        ref={emergencyDialogRef}
+        className="emergency-dialog"
+        aria-labelledby="emergency-dialog-title"
+        aria-describedby="emergency-dialog-description"
+        onCancel={() => setShowEmergencyPrompt(false)}
+        onClose={() => setShowEmergencyPrompt(false)}
+      >
+        <h2 id="emergency-dialog-title">Você ou alguém está em perigo agora?</h2>
+        <p id="emergency-dialog-description" className="emergency-dialog__message">
+          Algumas palavras podem indicar uma situação de risco. Se você ou outra pessoa estiver em perigo imediato,
+          ligue para a Polícia Militar pelo 190. Este aviso não substitui atendimento de emergência.
+        </p>
+        <div className="emergency-dialog__actions">
+          <a href="tel:190" className="btn">
+            <Icon name="phone" size={20} />
+            Ligar para 190
+          </a>
+          <button type="button" className="btn btn--outline" onClick={() => setShowEmergencyPrompt(false)}>
+            Continuar análise
+          </button>
+        </div>
+      </dialog>
       <BottomNav />
     </div>
   );

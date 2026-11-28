@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 import Field from "../components/Field.jsx";
-import Icon from "../components/Icon.jsx";
-import { DEMO_MODE } from "../config.js";
+import { DEMO_ENABLED } from "../config.js";
 
 export default function Login() {
   const { login, loginDemo } = useAuth();
@@ -31,12 +31,11 @@ export default function Login() {
       <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <div className="scroll">
         <header className="hero hero--login">
-          <div className="logo"><Icon name="shield" size={34} /></div>
+          <BrandMark />
           <h1 className="hero__title">Confere Antes</h1>
           <p>Confirme antes de agir. Proteja-se do golpe da falsa central.</p>
         </header>
         <main className="content content--login" id="main-content" tabIndex="-1">
-          {DEMO_MODE && <p className="notice" role="status">Demonstração local ativa: os dados exibidos são fictícios.</p>}
           <form className="card stack" onSubmit={onSubmit} noValidate={false}>
             <h2>Acesse sua conta</h2>
             <Field label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
@@ -45,7 +44,7 @@ export default function Login() {
               placeholder="Sua senha" autoComplete="current-password" required />
             {error && <p className="error" role="alert">{error}</p>}
             <button className="btn" disabled={busy}>{busy ? "Entrando…" : "Entrar"}</button>
-            {DEMO_MODE && <button type="button" className="btn btn--outline" onClick={loginDemo}>Entrar em modo demonstração</button>}
+            {DEMO_ENABLED && <button type="button" className="btn btn--outline" onClick={loginDemo}>Acessar demonstração sem login</button>}
             <button type="button" className="link-btn" onClick={() => setShowReset((v) => !v)} aria-expanded={showReset}>
               Esqueci minha senha
             </button>

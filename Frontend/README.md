@@ -16,7 +16,7 @@ Login · Criar conta · Interface (início) · Analisar contato (chat) · Histó
 Visual fiel ao protótipo (paleta vermelha estilo Santander, cartões sobrepostos, menu inferior, chat com sugestões).
 
 ## Rodar em desenvolvimento
-Pré-requisito: Node 18+ e o back-end rodando (padrão `http://localhost:8080`).
+Pré-requisito: Node 18+. O back-end (padrão `http://localhost:8080`) só é necessário para testar contas reais; a demonstração não exige cadastro, login nem back-end.
 ```bash
 npm install
 cp .env.example .env      # ajuste DEV_API_TARGET se o back-end estiver em outro endereço
@@ -24,6 +24,9 @@ npm run dev               # http://localhost:5173
 npm test                  # testes unitários (Vitest)
 npm run build             # gera dist/
 ```
+Para ativar a demonstração sem login, defina `VITE_DEMO_MODE=true` no `.env` antes de iniciar o Vite ou criar o build. A sessão de demonstração usa armazenamento local e não envia análises ao back-end; contas reais continuam usando a API normalmente. Use `VITE_DEMO_MODE=false` para ocultar o acesso e desativar as simulações. Como a variável é lida no build, gere um novo build após alterá-la.
+
+No chat, mensagens enviadas com palavras associadas a perigo podem exibir um alerta com acesso ao discador para o 190. O alerta não faz chamadas automaticamente e pode ser fechado para continuar a análise.
 
 ## Publicar (Docker / Render)
 ```bash

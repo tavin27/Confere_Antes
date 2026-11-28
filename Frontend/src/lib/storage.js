@@ -26,7 +26,6 @@ export const sessionsStore = {
 const DEFAULT_SETTINGS = {
   alerts: true,
   shareReports: false,
-  fontSize: "normal",
   highContrast: false,
   reduceMotion: false,
   colorBlindMode: false,
@@ -34,4 +33,17 @@ const DEFAULT_SETTINGS = {
 export const settingsStore = {
   get: (email) => ({ ...DEFAULT_SETTINGS, ...read(`ca:settings:${scope(email)}`, {}) }),
   set: (email, settings) => write(`ca:settings:${scope(email)}`, settings),
+};
+
+export const trustedContactsStore = {
+  list(email) {
+    const value = localStorage.getItem(`ca:trusted-contacts:${scope(email)}`);
+    if (!value) return [];
+    const contacts = JSON.parse(value);
+    if (!Array.isArray(contacts)) throw new Error("Os contatos salvos estão em um formato inválido.");
+    return contacts;
+  },
+  save(email, contacts) {
+    localStorage.setItem(`ca:trusted-contacts:${scope(email)}`, JSON.stringify(contacts));
+  },
 };
