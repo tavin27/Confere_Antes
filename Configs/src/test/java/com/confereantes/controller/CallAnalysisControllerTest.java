@@ -127,23 +127,27 @@ class CallAnalysisControllerTest {
     }
 
     private CallResponse callResponse(CallProcessingStatus status, UserDecision decision) {
-        LocalDateTime now = LocalDateTime.of(2026, 11, 25, 12, 0);
-        return new CallResponse(
-                21L,
-                7L,
-                "https://storage.example.test/call.mp3",
-                "11999999999",
-                status,
-                now,
-                now,
-                null,
-                null,
-                null,
-                false,
-                null,
-                null,
-                List.of(),
-                decision,
-                null);
-    }
+    LocalDateTime now = LocalDateTime.of(2026, 11, 25, 12, 0);
+    return new CallResponse(
+            21L,
+            7L,
+            "https://storage.example.test/call.mp3",
+            "11999999999",
+            status,
+            now,
+            now,
+            null,
+            null,
+            null,
+            false,
+            null,
+            null,
+            List.of(),
+            null,
+            null,
+            List.of(),
+            List.of(),
+            decision,
+            null);
+}
 }
