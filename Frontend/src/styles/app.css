@@ -167,6 +167,15 @@ a.item:hover { color: var(--red); }
   .mic { min-width: 48px; min-height: 48px; }
   .send { min-width: 48px; min-height: 48px; }
 }
+.call-monitor { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px; margin: 0 0 4px; border: 1.5px solid var(--field); border-radius: 24px; background: #fff; color: var(--ink); font-size: .9375rem; font-weight: 500; cursor: pointer; touch-action: manipulation; position: relative; transition: background .15s, border-color .15s; }
+.call-monitor:hover:not(:disabled) { border-color: var(--red); background: color-mix(in srgb, var(--red) 4%, #fff); }
+.call-monitor:active:not(:disabled) { transform: scale(.98); }
+.call-monitor:disabled { opacity: .45; cursor: default; }
+.call-monitor--active { background: var(--red); color: #fff; border-color: var(--red); }
+.call-monitor--active:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 85%, #000); }
+.call-monitor--active .mic__pulse { border-color: #fff; inset: 2px; }
+.call-monitor__status { font-size: .875rem; color: var(--red); padding: 4px 16px 6px; font-weight: 500; }
+.call-monitor__interim { font-style: italic; color: var(--muted); font-weight: 400; }
 
 /* Alto contraste */
 html[data-high-contrast="true"] {

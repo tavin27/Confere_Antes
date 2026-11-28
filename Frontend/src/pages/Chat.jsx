@@ -60,6 +60,7 @@ export default function Chat() {
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
   const [interimText, setInterimText] = useState("");
+  const [callMode, setCallMode] = useState(false);
   const recognitionRef = useRef(null);
   const createdHere = useRef(null);
   const endRef = useRef(null);
@@ -68,6 +69,17 @@ export default function Chat() {
   const draftRef = useRef("");
   useEffect(() => { draftRef.current = draft; }, [draft]);
   const listeningRef = useRef(false);
+  const callModeRef = useRef(false);
+  const alertIdRef = useRef(null);
+  const busyRef = useRef(false);
+  const pendingRef = useRef(null);
+  const awaitingAiRef = useRef(false);
+
+  // Mantém refs sincronizados com os estados para uso em callbacks assíncronos
+  useEffect(() => { alertIdRef.current = alertId; }, [alertId]);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+  useEffect(() => { pendingRef.current = pending; }, [pending]);
+  useEffect(() => { awaitingAiRef.current = awaitingAi; }, [awaitingAi]);
 
   // Verifica suporte na montagem
   useEffect(() => {
@@ -76,19 +88,20 @@ export default function Chat() {
     }
   }, []);
 
-  function createAndStartRecognition() {
+  function createAndStartRecognition(isCallMode = false) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
     // Sempre criar nova instância: SpeechRecognition não pode ser .start()ada após onend disparar
     const recognition = new SpeechRecognition();
     recognition.lang = "pt-BR";
-    recognition.continuous = false;
+    recognition.continuous = isCallMode; // contínuo no modo ligação
     recognition.interimResults = true; // Habilita feedback em tempo real
     recognition.maxAlternatives = 1;
 
     let silenceTimeout;
     const resetSilenceTimeout = () => {
+      if (isCallMode) return; // modo ligação não tem timeout de silêncio
       clearTimeout(silenceTimeout);
       silenceTimeout = setTimeout(() => {
         if (listeningRef.current) recognition.stop();
@@ -98,30 +111,37 @@ export default function Chat() {
     recognition.onstart = () => {
       listeningRef.current = true;
       setListening(true);
-      resetSilenceTimeout();
+      if (!isCallMode) resetSilenceTimeout();
     };
 
     recognition.onresult = (event) => {
-      resetSilenceTimeout();
+      if (!isCallMode) resetSilenceTimeout();
       let finalText = "";
-      let interimText = "";
+      let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
           finalText += event.results[i][0].transcript;
         } else {
-          interimText += event.results[i][0].transcript;
+          interim += event.results[i][0].transcript;
         }
       }
       if (finalText) {
-        setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalText}` : finalText);
         setInterimText("");
-      } else if (interimText) {
-        setInterimText(interimText);
+        if (isCallMode) {
+          // Modo ligação: envia cada frase final imediatamente
+          sendCallSentence(finalText.trim());
+        } else {
+          setDraft((prev) => prev.trim() ? `${prev.trim()} ${finalText}` : finalText);
+        }
+      } else if (interim) {
+        setInterimText(interim);
       }
     };
 
     recognition.onerror = (event) => {
       clearTimeout(silenceTimeout);
+      // no-speech em modo ligação é normal (silêncio entre frases), não encerra
+      if (isCallMode && event.error === "no-speech") return;
       listeningRef.current = false;
       setListening(false);
       setInterimText("");
@@ -132,10 +152,18 @@ export default function Chat() {
 
     recognition.onend = () => {
       clearTimeout(silenceTimeout);
+      setInterimText("");
+      if (isCallMode && callModeRef.current) {
+        // Modo ligação: browsers mobile encerram mesmo com continuous=true;
+        // reinicia automaticamente enquanto o modo estiver ativo
+        setTimeout(() => {
+          if (callModeRef.current) createAndStartRecognition(true);
+        }, 300);
+        return;
+      }
       listeningRef.current = false;
       setListening(false);
-      setInterimText("");
-      // Auto-submit: envia o texto capturado sem precisar pressionar Enter
+      // Auto-submit no modo normal
       const captured = draftRef.current.trim();
       if (captured) {
         submitRef.current(captured);
@@ -151,7 +179,79 @@ export default function Chat() {
       recognitionRef.current?.stop();
     } else {
       setError("");
-      createAndStartRecognition();
+      createAndStartRecognition(false);
+    }
+  }
+
+  function toggleCallMode() {
+    if (callMode) {
+      // Encerrar modo ligação
+      callModeRef.current = false;
+      setCallMode(false);
+      recognitionRef.current?.stop();
+      listeningRef.current = false;
+      setListening(false);
+      setInterimText("");
+    } else {
+      setError("");
+      callModeRef.current = true;
+      setCallMode(true);
+      // Se ainda não tem sessão, abre automaticamente com canal LIGACAO
+      if (!alertIdRef.current) {
+        startCallSession();
+      } else {
+        createAndStartRecognition(true);
+      }
+    }
+  }
+
+  async function startCallSession() {
+    setBusy(true);
+    busyRef.current = true;
+    setError("");
+    let created;
+    try {
+      created = await alertsApi.create("LIGACAO");
+    } catch (err) {
+      setError(err.message);
+      callModeRef.current = false;
+      setCallMode(false);
+      setBusy(false);
+      busyRef.current = false;
+      return;
+    }
+    const score = created.overallRiskScore ?? null;
+    createdHere.current = created.id;
+    setAlertId(created.id);
+    alertIdRef.current = created.id;
+    sessionsStore.upsert(user.email, {
+      id: created.id, channel: "LIGACAO", createdAt: created.createdAt, preview: "Monitoramento de ligação", score,
+    });
+    navigate(`/analisar/${created.id}`, { replace: true });
+    setBusy(false);
+    busyRef.current = false;
+    createAndStartRecognition(true);
+  }
+
+  async function sendCallSentence(text) {
+    if (!text || busyRef.current || awaitingAiRef.current || pendingRef.current) return;
+    const id = alertIdRef.current;
+    if (!id) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    const bubbleId = localId();
+    setMessages((list) => [...list, { id: bubbleId, from: "user", text }]);
+    try {
+      await alertsApi.sendMessage(id, text);
+      awaitingAiRef.current = true;
+      setAwaitingAi(true);
+    } catch (err) {
+      setMessages((list) => list.filter((m) => m.id !== bubbleId));
+      setError(err.message);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   }
 
@@ -271,6 +371,7 @@ export default function Chat() {
     const score = created.overallRiskScore ?? null;
     createdHere.current = created.id;
     setAlertId(created.id);
+    alertIdRef.current = created.id;
     setPending(null);
     sessionsStore.upsert(user.email, {
       id: created.id, channel, createdAt: created.createdAt, preview: truncate(content, 80), score,
@@ -385,10 +486,30 @@ export default function Chat() {
 
       <div className="chat-foot">
         <p className="chat-note">Nunca informe senha, token ou código neste chat.</p>
-        {awaitingAi && <p className="muted" role="status">A IA estÃ¡ analisando sua mensagem...</p>}
+        {awaitingAi && <p className="muted" role="status">A IA está analisando sua mensagem...</p>}
         {error && <p className="error" role="alert">{error}</p>}
+        {voiceSupported && (
+          <button
+            type="button"
+            className={`call-monitor${callMode ? " call-monitor--active" : ""}`}
+            aria-label={callMode ? "Parar monitoramento da ligação" : "Monitorar ligação ao vivo"}
+            aria-pressed={callMode}
+            disabled={loading || Boolean(pending)}
+            onClick={toggleCallMode}
+          >
+            <Icon name="mic" size={18} />
+            {callMode ? "Parar monitoramento" : "📞 Monitorar ligação ao vivo"}
+            {callMode && <span className="mic__pulse" aria-hidden="true" />}
+          </button>
+        )}
+        {callMode && (
+          <p className="call-monitor__status" role="status">
+            🔴 Monitorando ao vivo — coloque no viva-voz e fale
+            {interimText && <span className="call-monitor__interim"> "{interimText}"</span>}
+          </p>
+        )}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); submit(draft); }}>
-          {voiceSupported && (
+          {voiceSupported && !callMode && (
             <button
               type="button"
               className={`mic${listening ? " mic--active" : ""}`}
@@ -402,14 +523,14 @@ export default function Chat() {
             </button>
           )}
           <input value={interimText || draft} onChange={(e) => { setDraft(e.target.value); setInterimText(""); }} maxLength={10000}
-            aria-label="Descreva o alerta" disabled={Boolean(pending) || loading || awaitingAi}
+            aria-label="Descreva o alerta" disabled={Boolean(pending) || loading || awaitingAi || callMode}
             className={interimText ? "input--interim" : undefined}
-            placeholder={listening ? "Ouvindo… fale agora" : pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
-          <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || awaitingAi || Boolean(pending) || loading}>
+            placeholder={callMode ? "Transcrevendo ao vivo…" : listening ? "Ouvindo… fale agora" : pending ? "Escolha o canal acima" : "Descreva o alerta: quem ligou, o que pediu…"} />
+          <button className="send" aria-label="Enviar" disabled={!draft.trim() || busy || awaitingAi || Boolean(pending) || loading || callMode}>
             <Icon name="send" size={22} />
           </button>
         </form>
-        {listening && <p className="muted" role="status">🎙️ Ouvindo… fale claramente. Toque no microfone para parar.</p>}
+        {listening && !callMode && <p className="muted" role="status">🎙️ Ouvindo… fale claramente. Toque no microfone para parar.</p>}
       </div>
       <BottomNav />
     </div>
